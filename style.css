@@ -1,4 +1,4 @@
-/* style.css - Boundary X: Handpose & Sync (Unified Theme) */
+/* style.css - Boundary X: Handpose & Sync (Final 4:3 Version) */
 
 :root {
   /* Palette */
@@ -107,11 +107,13 @@ main {
   gap: 2rem;
 }
 
-/* Canvas Area */
+/* Canvas Area (Modified for 4:3 Aspect Ratio) */
 .canvas-container { 
     width: 100%;
-    max-width: 400px;
-    aspect-ratio: 1/1;
+    /* 4:3 비율의 최대 사이즈 (PC 기준) */
+    max-width: 640px; 
+    /* 비율을 4:3으로 고정 */
+    aspect-ratio: 4/3;
     border-radius: var(--radius-card);
     overflow: hidden;
     background: #000;
@@ -122,6 +124,7 @@ main {
 
 canvas { 
     display: block; 
+    /* 캔버스가 컨테이너를 가득 채우도록 강제 */
     width: 100% !important; 
     height: 100% !important; 
     object-fit: contain; 
@@ -176,10 +179,10 @@ canvas {
   color: var(--text-sub);
   font-size: 0.95rem;
   margin-bottom: 1.5rem;
-  margin-left: 1.2rem; /* h3 border width + padding 맞춰서 정렬 */
+  margin-left: 1.2rem;
 }
 
-/* --- New: Mode Tabs --- */
+/* --- Mode Tabs --- */
 .mode-tabs {
   display: flex;
   gap: 12px;
@@ -273,7 +276,7 @@ canvas {
   margin-right: 10px;
 }
 
-/* --- New: Protocol Radio Box --- */
+/* --- Protocol Radio Box --- */
 .protocol-options {
   display: flex;
   flex-direction: column;
@@ -297,7 +300,6 @@ canvas {
   border-color: #999;
 }
 
-/* 라디오 인풋 스타일 커스텀 */
 .radio-box input[type="radio"] {
   appearance: none;
   width: 20px;
@@ -327,7 +329,6 @@ canvas {
   transform: scale(1);
 }
 
-/* 선택된 박스 스타일 */
 .radio-box:has(input:checked) {
   border-color: var(--primary);
   background-color: #fff;
@@ -351,7 +352,7 @@ canvas {
   margin-top: 2px;
 }
 
-/* --- New: Finger Bars --- */
+/* --- Finger Bars --- */
 .finger-bars {
   display: flex;
   flex-direction: column;
@@ -378,7 +379,7 @@ canvas {
 .finger-item span:last-child { 
   width: 45px; 
   text-align: right; 
-  font-family: 'Courier New', monospace; /* 숫자 가독성 */
+  font-family: 'Courier New', monospace;
   font-weight: 700;
 } 
 
@@ -440,7 +441,7 @@ button:active {
 
 .reset-button {
   width: 100%;
-  background-color: #EA4335; /* Red */
+  background-color: #EA4335;
   color: white;
   border-radius: var(--radius-sm);
   margin-top: 10px;
@@ -610,8 +611,8 @@ address {
   margin-top: 4px;
 }
 
-/* --- Responsive --- */
-@media (min-width: 768px) {
+/* --- Responsive (Updated for 4:3) --- */
+@media (min-width: 900px) { /* 넓은 화면 기준점 조정 */
   main {
     flex-direction: row;       
     align-items: flex-start;   
@@ -622,13 +623,14 @@ address {
   .canvas-container {
     position: sticky; 
     top: 2rem;        
-    width: 400px;
+    /* PC화면에서도 640px 유지 */
+    width: 640px; 
   }
 
   .controls { flex: 1; }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   main { 
     padding: 1.5rem 1rem !important; 
     gap: 1.5rem !important;
@@ -636,7 +638,8 @@ address {
 
   .canvas-container {
     width: 100% !important;            
-    max-width: 320px !important; 
+    /* 모바일에서는 화면 꽉 차게 */
+    max-width: 100% !important; 
     margin: 0 auto !important;   
   }
 
