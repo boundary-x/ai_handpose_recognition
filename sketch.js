@@ -1,6 +1,6 @@
 /**
  * sketch.js
- * Boundary X: AI Handpose + Finger Sync
+ * Boundary X: AI Handpose + Finger Sync (Fixed Version)
  */
 
 // Bluetooth UUIDs
@@ -14,8 +14,12 @@ let handpose;
 let predictions = [];
 let knnClassifier;
 
+// [수정 1] 4:3 비율 해상도 설정 (640x480)
+const VIDEO_WIDTH = 640;
+const VIDEO_HEIGHT = 480;
+
 // System State
-let currentMode = 'KNN'; // 'KNN' or 'SYNC'
+let currentMode = 'KNN'; 
 let isConnected = false;
 let isRunning = false;
 let isModelReady = false;
@@ -34,12 +38,14 @@ let selectedProtocol = 'analog';
 let badge, btDisplay, statusUI;
 
 function setup() {
-  const canvas = createCanvas(400, 400);
+  // [수정 2] 캔버스 크기를 4:3 변수로 설정
+  const canvas = createCanvas(VIDEO_WIDTH, VIDEO_HEIGHT);
   canvas.parent('p5-container');
 
   // Video Setup
   video = createCapture(VIDEO);
-  video.size(400, 400);
+  // [수정 3] 비디오 크기를 캔버스와 정확히 일치시켜 좌표 오차 제거
+  video.size(VIDEO_WIDTH, VIDEO_HEIGHT);
   video.hide();
 
   // ML5 Handpose Setup
@@ -52,7 +58,6 @@ function setup() {
   // KNN Setup
   knnClassifier = ml5.KNNClassifier();
 
-  // UI Setup
   setupUI();
 }
 
@@ -68,20 +73,26 @@ function setupUI() {
   btDisplay = select('#bluetooth-data-display');
   statusUI = select('#bluetoothStatus');
 
-  // Tabs
   select('#tab-knn').mousePressed(() => switchMode('KNN'));
   select('#tab-sync').mousePressed(() => switchMode('SYNC'));
 
-  // Protocol Radio
   const radios = document.getElementsByName('protocol');
   radios.forEach(r => {
     r.addEventListener('change', (e) => selectedProtocol = e.target.value);
   });
 
-  // Buttons
   select('#btn-connect').mousePressed(connectBluetooth);
   select('#btn-disconnect').mousePressed(disconnectBluetooth);
-  select('#btn-start').mousePressed(() => isRunning = true);
+  
+  select('#btn-start').mousePressed(() => {
+     // [수정 4] KNN 모드인데 학습 데이터가 하나도 없으면 시작 방지
+     if(currentMode === 'KNN' && knnClassifier.getNumLabels() <= 0) {
+         alert("학습 데이터가 없습니다. 먼저 제스처를 학습시켜주세요.");
+         return;
+     }
+     isRunning = true;
+  });
+  
   select('#btn-stop').mousePressed(() => {
     isRunning = false;
     sendBluetoothData("stop");
@@ -90,7 +101,6 @@ function setupUI() {
   });
   select('#btn-flip').mousePressed(() => isFlipped = !isFlipped);
 
-  // KNN Buttons
   select('#add-class-btn').mousePressed(addClass);
   select('#reset-model-btn').mousePressed(resetKNN);
 }
@@ -99,6 +109,9 @@ function switchMode(mode) {
   currentMode = mode;
   select('#tab-knn').removeClass('active');
   select('#tab-sync').removeClass('active');
+  
+  // 모드 변경 시 실행 중지 (안전 장치)
+  isRunning = false; 
   
   if(mode === 'KNN') {
     select('#tab-knn').addClass('active');
@@ -115,26 +128,28 @@ function switchMode(mode) {
 function draw() {
   background(0);
   
-  // 1. Draw Video (Mirrored or Normal)
   push();
   if (isFlipped) {
     translate(width, 0);
     scale(-1, 1);
   }
-  // 비디오 그리기
+  // 1. Draw Video
   image(video, 0, 0, width, height);
   
-  // 스켈레톤(관절) 그리기 - 반전된 상태에서 그려야 위치가 맞음
+  // 2. Draw Skeleton (같은 좌표계 안에서 그리므로 위치 자동 보정됨)
   drawKeypoints();
   pop();
 
-  // 2. Process Logic
+  // 3. Process Logic
   if (isModelReady && predictions.length > 0 && isRunning) {
     const hand = predictions[0]; 
 
     if (currentMode === 'KNN') {
-      const features = hand.landmarks.flat(); 
-      knnClassifier.classify(features, gotKNNResults);
+      // [수정 5] 에러 방지: KNN 라벨이 있을 때만 분류 실행
+      if (knnClassifier.getNumLabels() > 0) {
+          const features = hand.landmarks.flat(); 
+          knnClassifier.classify(features, gotKNNResults);
+      }
     } 
     else if (currentMode === 'SYNC') {
       analyzeFingers(hand.landmarks);
@@ -143,12 +158,10 @@ function draw() {
   }
 }
 
-// === Visualization Logic ===
 function drawKeypoints() {
   if(predictions.length === 0) return;
   const hand = predictions[0];
   
-  // Draw landmarks (Points)
   fill(0, 255, 0);
   noStroke();
   for (let j = 0; j < hand.landmarks.length; j++) {
@@ -160,35 +173,42 @@ function drawKeypoints() {
 // === KNN Logic ===
 function addClass() {
   const name = select('#class-input').value();
-  if(!name || predictions.length === 0) {
-      alert("먼저 카메라에 손을 보여주세요.");
+  if(!name) {
+      alert("이름을 입력해주세요.");
+      return;
+  }
+  if(predictions.length === 0) {
+      alert("손이 인식되지 않았습니다.");
       return;
   }
   
   const id = nextClassId++;
   idToNameMap[id] = name;
   
-  // Add to KNN
   const features = predictions[0].landmarks.flat();
   knnClassifier.addExample(features, id);
   
-  // UI Update
   const list = select('#class-list');
   list.elt.innerHTML += `<div class="train-btn-row"><span class="id-badge">ID ${id}</span> <b>${name}</b> (학습 완료)</div>`;
   select('#class-input').value('');
 }
 
 function gotKNNResults(err, result) {
-  if(err) return;
+  // [수정 6] 에러 핸들링 강화: result가 유효하지 않으면 리턴
+  if(err || !result || !result.confidencesByLabel) {
+      return;
+  }
+
   const label = result.label;
   const conf = result.confidencesByLabel[label];
   
-  if(conf > 0.8) { 
+  // 신뢰도가 있고 유효한 경우만 처리
+  if(conf && conf > 0.8) { 
      const name = idToNameMap[label] || "Unknown";
      select('#result-label').html(`ID ${label}: ${name}`);
      select('#result-confidence').html(Math.floor(conf*100) + '%');
      
-     if(frameCount % 10 === 0) { // 너무 빈번한 전송 방지
+     if(frameCount % 10 === 0) { 
          const data = `ID${label}`;
          sendBluetoothData(data);
          btDisplay.html("전송됨: " + data);
@@ -204,10 +224,11 @@ function resetKNN() {
       nextClassId = 1;
       idToNameMap = {};
       select('#result-label').html("데이터 없음");
+      isRunning = false; // 리셋 시 실행 중지
   }
 }
 
-// === Finger Sync Logic (Geometry) ===
+// === Finger Sync Logic ===
 function analyzeFingers(landmarks) {
   fingerAngles.T = calculateBend(landmarks[2], landmarks[3], landmarks[4]);
   fingerAngles.I = calculateBend(landmarks[5], landmarks[6], landmarks[7]);
@@ -227,9 +248,6 @@ function calculateBend(a, b, c) {
   const CB = createVector(c[0]-b[0], c[1]-b[1]);
   const angle = p5.Vector.angleBetween(AB, CB); 
   const deg = degrees(angle); 
-  
-  // 각도 매핑 (손가락 특성에 따라 조절 가능)
-  // 보통 쫙 펴면 170~180도, 굽히면 90도 이하
   let extension = map(deg, 80, 170, 0, 100, true);
   return Math.floor(extension);
 }
@@ -241,19 +259,16 @@ function updateBar(key, val) {
 
 function processSyncProtocol() {
   let msg = "";
-  
   if (selectedProtocol === 'analog') {
     msg = `T${fingerAngles.T}I${fingerAngles.I}M${fingerAngles.M}R${fingerAngles.R}P${fingerAngles.P}`;
-  } 
-  else if (selectedProtocol === 'digital') {
+  } else if (selectedProtocol === 'digital') {
     const t = fingerAngles.T > 50 ? 1 : 0;
     const i = fingerAngles.I > 50 ? 1 : 0;
     const m = fingerAngles.M > 50 ? 1 : 0;
     const r = fingerAngles.R > 50 ? 1 : 0;
     const p = fingerAngles.P > 50 ? 1 : 0;
     msg = `T${t}I${i}M${m}R${r}P${p}`;
-  } 
-  else if (selectedProtocol === 'count') {
+  } else if (selectedProtocol === 'count') {
     let count = 0;
     if(fingerAngles.T > 50) count++;
     if(fingerAngles.I > 50) count++;
@@ -284,8 +299,8 @@ async function connectBluetooth() {
     statusUI.html("상태: 연결됨!");
     statusUI.addClass('status-connected');
   } catch (e) {
-    statusUI.html("연결 실패");
-    console.error(e);
+    statusUI.html("연결 취소 또는 실패");
+    console.log(e); // User Cancelled 등은 로그로만 처리
   }
 }
 
