@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>바운더리엑스 AI 사물인식</title>
+  <title>바운더리엑스 AI 핸드인식</title>
   
   <link rel="icon" href="https://raw.githubusercontent.com/boundary-x/ai_teachable_machine/refs/heads/main/Favicon.png"/> 
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/p5.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.dom.min.js"></script>
-  <script src="https://unpkg.com/ml5@0.5.0/dist/ml5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.dom.min.js"></script>
+  <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
   
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link rel="stylesheet" type="text/css" href="style.css">
@@ -21,61 +21,103 @@
       <a href="https://boundaryx.io">
         <img src="https://raw.githubusercontent.com/boundary-x/ai_voice_recognition/refs/heads/main/boundaryx_logo.png" alt="Logo">
       </a>
-      AI 사물인식
+      AI 핸드인식 <span class="white-badge">Gesture Control</span>
     </div>
     <a href="https://boundaryx.io/59" class="back-button">돌아가기</a>
   </header>
 
   <main>
-    <div id="p5-container" class="canvas-container"></div>
+    <div class="mode-switch-container">
+        <input type="radio" id="mode-gesture" name="mode" value="gesture" checked>
+        <label for="mode-gesture">🤖 AI 제스처 러닝</label>
+        
+        <input type="radio" id="mode-finger" name="mode" value="finger">
+        <label for="mode-finger">🖐️ 핑거 싱크</label>
+    </div>
+
+    <div id="p5-container" class="canvas-container">
+        <div id="status-badge" class="status-badge">모델 로딩 중...</div>
+    </div>
     
     <section class="controls">
-      
-      <div class="control-group">
-        <h3>🖥️ 전송 데이터 확인</h3>
-        
-        <div class="data-info-box">
-          <p class="info-title">📢 <strong>전송 데이터 안내</strong></p>
-          <p class="info-desc">인식된 사물 중 <strong>인식률(정확도)이 가장 높은 사물 1개</strong>의 기준 데이터가 전송됩니다.</p>
-          <div class="info-tags">
-            <span><strong>x, y</strong> : 중심 좌표</span>
-            <span><strong>w</strong> : 너비</span>
-            <span><strong>h</strong> : 높이</span>
-            <span><strong>d</strong> : 전체 감지 수</span>
-          </div>
+
+      <div id="panel-gesture" class="mode-panel">
+        <div class="control-group">
+            <h3>👋 제스처 학습 (KNN)</h3>
+            <p>손동작을 취하고 버튼을 눌러 AI에게 가르쳐주세요.</p>
+            
+            <div class="input-group">
+                <input type="text" id="class-input" placeholder="동작 이름 (예: 주먹)">
+                <button id="add-example-btn" class="add-button">학습</button>
+            </div>
+            
+            <div id="gesture-list" class="class-list-container"></div>
+            
+            <button id="reset-model-btn" class="reset-button" style="margin-top: 10px;">🗑️ 학습 모델 초기화</button>
         </div>
 
-        <div id="dataDisplay" class="data-display">전송 대기 중...</div>
+        <div class="control-group">
+            <h3>📊 인식 결과</h3>
+            <div class="data-info-box">
+                <div id="gesture-result-label" class="ai-result">데이터 없음</div>
+                <div id="gesture-confidence" class="ai-confidence"></div>
+            </div>
+             <div id="bt-display-gesture" class="data-display">전송 데이터: 대기 중...</div>
+        </div>
+      </div>
+
+      <div id="panel-finger" class="mode-panel" style="display: none;">
+        
+        <div class="control-group">
+            <h3>🎛️ 전송 데이터 형식 설정</h3>
+            <p>로봇의 제어 방식에 맞춰 데이터 형식을 선택하세요.</p>
+            
+            <div class="radio-group">
+                <label class="radio-card">
+                    <input type="radio" name="finger-format" value="analog" checked>
+                    <div class="radio-content">
+                        <span class="radio-title">아날로그 (0~100%)</span>
+                        <span class="radio-desc">서보모터, 속도 제어용</span>
+                    </div>
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="finger-format" value="digital">
+                    <div class="radio-content">
+                        <span class="radio-title">디지털 (ON/OFF)</span>
+                        <span class="radio-desc">LED, 스위치 제어용</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>🖐️ 핑거 상태 모니터링</h3>
+            <div class="finger-gauges">
+                <div class="finger-item"><span>엄지</span><div class="bar-bg"><div id="bar-thumb" class="bar-fill"></div></div></div>
+                <div class="finger-item"><span>검지</span><div class="bar-bg"><div id="bar-index" class="bar-fill"></div></div></div>
+                <div class="finger-item"><span>중지</span><div class="bar-bg"><div id="bar-middle" class="bar-fill"></div></div></div>
+                <div class="finger-item"><span>약지</span><div class="bar-bg"><div id="bar-ring" class="bar-fill"></div></div></div>
+                <div class="finger-item"><span>소지</span><div class="bar-bg"><div id="bar-pinky" class="bar-fill"></div></div></div>
+            </div>
+            <div id="bt-display-finger" class="data-display" style="margin-top: 15px;">전송 데이터: 대기 중...</div>
+        </div>
       </div>
 
       <div class="control-group">
-        <h3>1. 카메라 설정</h3>
-        <p>카메라 버튼을 통해 화면을 설정해주세요.</p>
+        <h3>🔗 기기 연결</h3>
+        <div id="bluetoothStatus" style="margin-bottom: 10px;">상태: 연결 대기 중</div>
+        <div id="bluetooth-control-buttons" class="button-group"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>📷 카메라 설정</h3>
         <div id="camera-control-buttons" class="button-group"></div>
       </div>
 
       <div class="control-group">
-        <h3>2. 기기 연결</h3>
-        <p>블루투스 연결 버튼을 클릭해 마이크로비트를 연결해주세요.</p>
-        <div id="bluetoothStatus">상태: 연결 대기 중</div>
-        <div id="bluetooth-control-buttons" class="button-group" style="margin-top: 1.5rem;"></div>
-      </div>
-
-      <div class="control-group">
-        <h3>3. 인식 설정</h3>
-        <p>인식할 사물을 추가하고 정확도를 설정해주세요.</p>
-        
-        <div id="object-select-container" class="model-selection"></div>
-        
-        <div id="selected-objects-list" class="selected-tags"></div>
-        
-        <div id="confidence-container" class="model-key" style="margin-top: 20px;"></div>
-      </div>
-
-      <div class="control-group">
-        <h3>4. 사물 인식 제어</h3>
-        <p>시작 버튼을 눌러 AI 인식을 시작하세요.</p>
-        <div id="object-control-buttons" class="button-group"></div>
+        <h3>🚀 핸드 포즈 인식 제어</h3>
+        <p>시작 버튼을 눌러야 데이터 전송이 시작됩니다.</p>
+        <div id="recognition-control-buttons" class="button-group"></div>
       </div>
 
     </section>
@@ -92,33 +134,7 @@
             <p class="copyright">© 2024 Boundary X Co. All rights reserved.</p>
           </address>
         </div>
-
-        <div class="footer-links">
-          <div class="link-column">
-            <h4>제품 소개</h4>
-            <ul>
-              <li>
-                <a href="https://boundaryx.io/shop/?idx=25" target="_blank">AI 비트런</a>
-                <span class="link-desc">마이크로비트 기반 이족보행로봇</span>
-              </li>
-              <li>
-                <a href="https://boundaryx.io/shop/?idx=26" target="_blank">AI 포니봇</a>
-                <span class="link-desc">마이크로비트 기반 모빌리티로봇</span>
-              </li>
-            </ul>
-          </div>
-
-          <div class="link-column">
-            <h4>고객 지원</h4>
-            <ul>
-              <li>
-                <a href="https://boundaryx.io/contact" target="_blank">문의처</a>
-                <span class="link-desc">제품 문의 | 제휴 문의 | 연수 문의</span>
-              </li>
-            </ul>
-          </div>
         </div>
-      </div>
     </div>
   </footer>
 
