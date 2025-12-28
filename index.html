@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>바운더리엑스 AI 핸드인식</title>
+  <title>바운더리엑스 AI 핸드포즈 & 싱크</title>
   
   <link rel="icon" href="https://raw.githubusercontent.com/boundary-x/ai_teachable_machine/refs/heads/main/Favicon.png"/> 
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.dom.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
   <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
   
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
@@ -21,103 +20,115 @@
       <a href="https://boundaryx.io">
         <img src="https://raw.githubusercontent.com/boundary-x/ai_voice_recognition/refs/heads/main/boundaryx_logo.png" alt="Logo">
       </a>
-      AI 핸드인식 <span class="white-badge">Gesture Control</span>
+      AI 핸드포즈 <span class="knn-badge">Pro</span>
     </div>
-    <a href="https://boundaryx.io/59" class="back-button">돌아가기</a>
+    <a href="https://boundaryx.io" class="back-button">돌아가기</a>
   </header>
 
   <main>
-    <div class="mode-switch-container">
-        <input type="radio" id="mode-gesture" name="mode" value="gesture" checked>
-        <label for="mode-gesture">🤖 AI 제스처 러닝</label>
-        
-        <input type="radio" id="mode-finger" name="mode" value="finger">
-        <label for="mode-finger">🖐️ 핑거 싱크</label>
-    </div>
-
     <div id="p5-container" class="canvas-container">
-        <div id="status-badge" class="status-badge">모델 로딩 중...</div>
+        <div id="camera-result-badge" class="camera-badge" style="display: none;">모델 로딩 중...</div>
     </div>
     
     <section class="controls">
-
-      <div id="panel-gesture" class="mode-panel">
-        <div class="control-group">
-            <h3>👋 제스처 학습 (KNN)</h3>
-            <p>손동작을 취하고 버튼을 눌러 AI에게 가르쳐주세요.</p>
-            
-            <div class="input-group">
-                <input type="text" id="class-input" placeholder="동작 이름 (예: 주먹)">
-                <button id="add-example-btn" class="add-button">학습</button>
-            </div>
-            
-            <div id="gesture-list" class="class-list-container"></div>
-            
-            <button id="reset-model-btn" class="reset-button" style="margin-top: 10px;">🗑️ 학습 모델 초기화</button>
-        </div>
-
-        <div class="control-group">
-            <h3>📊 인식 결과</h3>
-            <div class="data-info-box">
-                <div id="gesture-result-label" class="ai-result">데이터 없음</div>
-                <div id="gesture-confidence" class="ai-confidence"></div>
-            </div>
-             <div id="bt-display-gesture" class="data-display">전송 데이터: 대기 중...</div>
+      
+      <div class="control-group">
+        <h3>1. AI 모드 선택</h3>
+        <p>사용 목적에 맞는 AI 인식 모드를 선택하세요.</p>
+        <div class="mode-tabs">
+          <button id="tab-knn" class="tab-btn active">✊ 제스처 학습 (KNN)</button>
+          <button id="tab-sync" class="tab-btn">🖐️ 핑거 싱크 (Angle)</button>
         </div>
       </div>
 
-      <div id="panel-finger" class="mode-panel" style="display: none;">
+      <div id="panel-knn" class="control-panel">
+        <div class="control-group">
+          <h3>2. 제스처 데이터 학습</h3>
+          <p>학습할 동작의 이름을 입력하고 데이터를 수집하여 나만의 제스처 모델을 생성합니다.</p>
+          
+          <div class="input-group">
+            <input type="text" id="class-input" placeholder="이름 입력 (예: 가위)">
+            <button id="add-class-btn" class="add-button">추가</button>
+          </div>
+          <div id="class-list" class="class-list-container"></div>
+          <button id="reset-model-btn" class="reset-button">🗑️ 모델 초기화</button>
+        </div>
+
+        <div class="control-group">
+          <h3>3. AI 판단 결과 확인</h3>
+          <div class="data-info-box">
+            <p class="info-title"><strong>KNN 인식 결과</strong></p>
+            <div id="result-label" class="ai-result">데이터 없음</div>
+            <div id="result-confidence" class="ai-confidence">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-sync" class="control-panel" style="display: none;">
+        <div class="control-group">
+          <h3>2. 데이터 전송 프로토콜 설정</h3>
+          <p>마이크로비트로 전송할 손가락 데이터의 형식을 선택하세요.</p>
+          
+          <div class="protocol-options">
+            <label class="radio-box">
+              <input type="radio" name="protocol" value="analog" checked>
+              <div class="radio-content">
+                <span class="radio-title">1. 아날로그 (0~100%)</span>
+                <span class="radio-desc">각 손가락의 굽힘 정도를 정밀하게 전송 (예: T50I100...)</span>
+              </div>
+            </label>
+            <label class="radio-box">
+              <input type="radio" name="protocol" value="digital">
+              <div class="radio-content">
+                <span class="radio-title">2. 디지털 (ON/OFF)</span>
+                <span class="radio-desc">손가락을 폈는지(1) 접었는지(0) 여부만 전송</span>
+              </div>
+            </label>
+            <label class="radio-box">
+              <input type="radio" name="protocol" value="count">
+              <div class="radio-content">
+                <span class="radio-title">3. 카운트 (개수)</span>
+                <span class="radio-desc">펴진 손가락의 총 개수만 숫자로 전송 (예: 3)</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>3. 손가락 상태 모니터링</h3>
+          <p>카메라가 인식한 각 손가락의 상태를 실시간으로 확인합니다.</p>
+          <div class="finger-bars">
+            <div class="finger-item"><span>엄지 (T)</span><div class="bar-bg"><div id="bar-T" class="bar-fill"></div></div><span id="val-T">0%</span></div>
+            <div class="finger-item"><span>검지 (I)</span><div class="bar-bg"><div id="bar-I" class="bar-fill"></div></div><span id="val-I">0%</span></div>
+            <div class="finger-item"><span>중지 (M)</span><div class="bar-bg"><div id="bar-M" class="bar-fill"></div></div><span id="val-M">0%</span></div>
+            <div class="finger-item"><span>약지 (R)</span><div class="bar-bg"><div id="bar-R" class="bar-fill"></div></div><span id="val-R">0%</span></div>
+            <div class="finger-item"><span>소지 (P)</span><div class="bar-bg"><div id="bar-P" class="bar-fill"></div></div><span id="val-P">0%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>4. 기기 연결 및 제어</h3>
+        <p>마이크로비트를 연결하고 AI 인식을 시작하여 데이터를 전송합니다.</p>
         
-        <div class="control-group">
-            <h3>🎛️ 전송 데이터 형식 설정</h3>
-            <p>로봇의 제어 방식에 맞춰 데이터 형식을 선택하세요.</p>
-            
-            <div class="radio-group">
-                <label class="radio-card">
-                    <input type="radio" name="finger-format" value="analog" checked>
-                    <div class="radio-content">
-                        <span class="radio-title">아날로그 (0~100%)</span>
-                        <span class="radio-desc">서보모터, 속도 제어용</span>
-                    </div>
-                </label>
-                <label class="radio-card">
-                    <input type="radio" name="finger-format" value="digital">
-                    <div class="radio-content">
-                        <span class="radio-title">디지털 (ON/OFF)</span>
-                        <span class="radio-desc">LED, 스위치 제어용</span>
-                    </div>
-                </label>
-            </div>
+        <div id="bluetooth-data-display" class="data-display">전송 데이터: 대기 중...</div>
+        
+        <div class="common-controls">
+           <div class="button-row">
+             <button id="btn-connect" class="start-button">기기 연결</button>
+             <button id="btn-disconnect" class="stop-button">연결 해제</button>
+           </div>
+           <div id="bluetoothStatus" class="status-box">상태: 연결 대기 중</div>
+           
+           <div class="button-row" style="margin-top:15px;">
+             <button id="btn-start" class="start-button">작동 시작</button>
+             <button id="btn-stop" class="stop-button">작동 중지</button>
+           </div>
+           
+           <div class="button-row" style="margin-top:10px;">
+             <button id="btn-flip">화면 좌우 반전</button>
+           </div>
         </div>
-
-        <div class="control-group">
-            <h3>🖐️ 핑거 상태 모니터링</h3>
-            <div class="finger-gauges">
-                <div class="finger-item"><span>엄지</span><div class="bar-bg"><div id="bar-thumb" class="bar-fill"></div></div></div>
-                <div class="finger-item"><span>검지</span><div class="bar-bg"><div id="bar-index" class="bar-fill"></div></div></div>
-                <div class="finger-item"><span>중지</span><div class="bar-bg"><div id="bar-middle" class="bar-fill"></div></div></div>
-                <div class="finger-item"><span>약지</span><div class="bar-bg"><div id="bar-ring" class="bar-fill"></div></div></div>
-                <div class="finger-item"><span>소지</span><div class="bar-bg"><div id="bar-pinky" class="bar-fill"></div></div></div>
-            </div>
-            <div id="bt-display-finger" class="data-display" style="margin-top: 15px;">전송 데이터: 대기 중...</div>
-        </div>
-      </div>
-
-      <div class="control-group">
-        <h3>🔗 기기 연결</h3>
-        <div id="bluetoothStatus" style="margin-bottom: 10px;">상태: 연결 대기 중</div>
-        <div id="bluetooth-control-buttons" class="button-group"></div>
-      </div>
-
-      <div class="control-group">
-        <h3>📷 카메라 설정</h3>
-        <div id="camera-control-buttons" class="button-group"></div>
-      </div>
-
-      <div class="control-group">
-        <h3>🚀 핸드 포즈 인식 제어</h3>
-        <p>시작 버튼을 눌러야 데이터 전송이 시작됩니다.</p>
-        <div id="recognition-control-buttons" class="button-group"></div>
       </div>
 
     </section>
@@ -131,10 +142,36 @@
           <p class="slogan">"우리는 산업과 교육의 경계를 허물고, 미래 기술을 교실의 책상 위로 옮기는 사람들입니다"</p>
           <address>
             <p>경기도 의왕시 안양판교로 82(유니콘로드), 811호</p>
-            <p class="copyright">© 2024 Boundary X Co. All rights reserved.</p>
+            <p class="copyright">© 2025 Boundary X Co. All rights reserved.</p>
           </address>
         </div>
+
+        <div class="footer-links">
+          <div class="link-column">
+            <h4>제품 소개</h4>
+            <ul>
+              <li>
+                <a href="https://boundaryx.io/shop/?idx=25" target="_blank">AI 비트런</a>
+                <span class="link-desc">마이크로비트 기반 이족보행로봇</span>
+              </li>
+              <li>
+                <a href="https://boundaryx.io/shop/?idx=26" target="_blank">AI 포니봇</a>
+                <span class="link-desc">마이크로비트 기반 모빌리티로봇</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="link-column">
+            <h4>고객 지원</h4>
+            <ul>
+              <li>
+                <a href="https://boundaryx.io/contact" target="_blank">문의처</a>
+                <span class="link-desc">제품 문의 | 제휴 문의 | 연수 문의</span>
+              </li>
+            </ul>
+          </div>
         </div>
+      </div>
     </div>
   </footer>
 
