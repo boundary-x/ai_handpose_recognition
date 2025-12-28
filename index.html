@@ -35,10 +35,10 @@
       
       <div class="control-group">
         <h3>👋 나만의 제스처 만들기</h3>
-        <p>1. 동작 이름을 입력하세요.<br>2. 카메라에 손을 비추고 <strong>'학습'</strong> 버튼을 꾹 누르세요.</p>
+        <p>동작 이름을 입력하고 <strong>'학습'</strong> 버튼을 꾹 누르세요.</p>
         
         <div class="input-group">
-            <input type="text" id="class-input" placeholder="예: 주먹, 보자기, 전진">
+            <input type="text" id="class-input" placeholder="예: 주먹, 보자기">
             <button id="add-data-btn" class="start-button">학습 (Hold)</button>
         </div>
 
@@ -48,7 +48,7 @@
             <div class="empty-msg">아직 학습된 데이터가 없습니다.</div>
         </div>
         
-        <button id="reset-btn" class="stop-button" style="margin-top: 15px;">🗑️ 모델 초기화</button>
+        <button id="reset-btn" class="stop-button" style="margin-top: 15px;">🗑️ 모델 전체 초기화</button>
       </div>
 
       <div class="control-group">
@@ -58,7 +58,26 @@
             <div id="result-label" class="result-text">대기 중</div>
             <div id="result-conf" class="result-sub">데이터 부족</div>
         </div>
-        <div id="raw-data-display" class="debug-text">손목 기준 좌표 계산 중...</div>
+        <div id="bluetooth-data-display" class="data-display">전송 데이터: 대기 중...</div>
+      </div>
+
+      <div class="control-group">
+        <h3>▎ 1. 카메라 설정</h3>
+        <p>카메라 버튼을 통해 화면을 설정해주세요.</p>
+        <div id="camera-control-buttons" class="button-group"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>▎ 2. 기기 연결</h3>
+        <p>블루투스 연결 버튼을 클릭해 마이크로비트를 연결해주세요.</p>
+        <div id="bluetoothStatus" class="status-box">상태: 연결 대기 중</div>
+        <div id="bluetooth-control-buttons" class="button-group" style="margin-top: 15px;"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>▎ 3. AI 인식 제어</h3>
+        <p>시작 버튼을 눌러 AI 인식 및 데이터 전송을 시작하세요.</p>
+        <div id="recognition-control-buttons" class="button-group"></div>
       </div>
 
     </section>
@@ -87,16 +106,6 @@
               <li>
                 <a href="https://boundaryx.io/shop/?idx=26" target="_blank">AI 포니봇</a>
                 <span class="link-desc">마이크로비트 기반 모빌리티로봇</span>
-              </li>
-            </ul>
-          </div>
-
-          <div class="link-column">
-            <h4>고객 지원</h4>
-            <ul>
-              <li>
-                <a href="https://boundaryx.io/contact" target="_blank">문의처</a>
-                <span class="link-desc">제품 문의 | 제휴 문의 | 연수 문의</span>
               </li>
             </ul>
           </div>
