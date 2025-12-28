@@ -38,7 +38,7 @@ canvas { display: block; width: 100% !important; height: 100% !important; object
 .control-group h3 { color: #000; font-size: 1.2rem; font-weight: 800; margin-bottom: 0.8rem; }
 .control-group p { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 1.2rem; }
 
-/* Status Box (Image Style) */
+/* Status Box */
 .status-box {
     background: #EEEEEE; color: #333; padding: 1rem; border-radius: 8px;
     text-align: center; font-weight: 600; margin-bottom: 10px; font-size: 0.95rem;
@@ -49,11 +49,9 @@ canvas { display: block; width: 100% !important; height: 100% !important; object
 /* Buttons */
 .button-group { display: flex; gap: 10px; width: 100%; }
 button { cursor: pointer; border: none; font-size: 0.95rem; font-weight: 700; padding: 1rem 1.2rem; border-radius: 50px; transition: 0.2s; flex: 1; }
-
-.start-button { background-color: #000; color: white; } /* 검은색 버튼 */
+.start-button { background-color: #000; color: white; }
 .start-button:hover { background-color: #333; }
-
-.stop-button { background-color: white; color: #EA4335; border: 1px solid #ddd; } /* 흰색 버튼 */
+.stop-button { background-color: white; color: #EA4335; border: 1px solid #ddd; }
 .stop-button:hover { background-color: #FFF5F5; border-color: #EA4335; }
 
 /* Input */
