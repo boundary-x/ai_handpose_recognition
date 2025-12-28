@@ -38,7 +38,6 @@ canvas { display: block; width: 100% !important; height: 100% !important; object
 .control-group h3 { color: #000; font-size: 1.2rem; font-weight: 800; margin-bottom: 0.8rem; }
 .control-group p { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 1.2rem; }
 
-/* Status Box */
 .status-box {
     background: #EEEEEE; color: #333; padding: 1rem; border-radius: 8px;
     text-align: center; font-weight: 600; margin-bottom: 10px; font-size: 0.95rem;
@@ -46,7 +45,6 @@ canvas { display: block; width: 100% !important; height: 100% !important; object
 .status-connected { background-color: #E6F4EA !important; color: var(--success) !important; }
 .status-error { background-color: #FCE8E6 !important; color: var(--danger) !important; }
 
-/* Buttons */
 .button-group { display: flex; gap: 10px; width: 100%; }
 button { cursor: pointer; border: none; font-size: 0.95rem; font-weight: 700; padding: 1rem 1.2rem; border-radius: 50px; transition: 0.2s; flex: 1; }
 .start-button { background-color: #000; color: white; }
@@ -54,12 +52,10 @@ button { cursor: pointer; border: none; font-size: 0.95rem; font-weight: 700; pa
 .stop-button { background-color: white; color: #EA4335; border: 1px solid #ddd; }
 .stop-button:hover { background-color: #FFF5F5; border-color: #EA4335; }
 
-/* Input */
 .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
 input { flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; outline: none; }
 input:focus { border-color: var(--primary); }
 
-/* List */
 .divider { height: 1px; background: #E0E0E0; margin: 15px 0; }
 .class-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #fff; border-radius: 8px; border: 1px solid #eee; font-size: 0.95rem; }
@@ -72,12 +68,24 @@ input:focus { border-color: var(--primary); }
 .result-sub { color: #888; font-size: 0.9rem; }
 .data-display { background: #222; color: #0f0; padding: 10px; border-radius: 8px; text-align: center; font-family: monospace; font-size: 0.9rem; }
 
-footer { background: #000; color: #FFF; padding: 4rem 5vw; margin-top: auto; font-size: 0.9rem; }
+/* 상세 푸터 스타일 */
+footer { background: #000; color: #FFF; padding: 4rem 5vw; margin-top: auto; font-size: 0.9rem; border-top: 1px solid #222; }
 .footer-container { max-width: 1000px; margin: 0 auto; }
 .footer-top { display: flex; justify-content: space-between; gap: 4rem; flex-wrap: wrap; }
+
 .footer-info { flex: 1; min-width: 280px; }
-.footer-links { display: flex; gap: 4rem; }
-.footer-links a { text-decoration: none; color: #CCC; }
+.footer-logo { font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; color: #FFF; }
+.slogan { color: #CCC; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5; word-break: keep-all; }
+address { color: #888; font-style: normal; line-height: 1.6; }
+.copyright { margin-top: 0.8rem; font-size: 0.8rem; color: #666; }
+
+.footer-links { display: flex; gap: 4rem; flex-wrap: wrap; }
+.link-column h4 { margin-bottom: 1.2rem; font-weight: 700; color: #FFF; }
+.link-column ul { list-style: none; }
+.link-column li { margin-bottom: 1.2rem; }
+.link-column a { text-decoration: none; color: #CCC; transition: 0.2s; }
+.link-column a:hover { color: #FFF; text-decoration: underline; }
+.link-desc { display: block; font-size: 0.8rem; color: #666; margin-top: 2px; }
 
 @media (min-width: 768px) {
   main { flex-direction: row; align-items: flex-start; justify-content: center; gap: 3rem; }
@@ -86,5 +94,5 @@ footer { background: #000; color: #FFF; padding: 4rem 5vw; margin-top: auto; fon
 }
 @media (max-width: 767px) {
   main { padding: 1.5rem; }
-  .footer-top { flex-direction: column; gap: 2rem; }
+  .footer-top, .footer-links { flex-direction: column; gap: 2rem; }
 }
