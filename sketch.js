@@ -76,12 +76,12 @@ function setupUI() {
 function draw() {
   background(0);
 
-  // 1. 비디오 & 스켈레톤 그리기
+  // 1. 비디오 & 스켈레톤 그리기 (거울 모드 적용)
   push();
   translate(width, 0);
   scale(-1, 1);
   image(video, 0, 0, width, height);
-  drawKeypoints();
+  drawKeypoints(); // 스켈레톤도 반전된 좌표계 안에서 그립니다.
   pop();
 
   // 2. 데이터 처리 및 학습/분류
@@ -173,7 +173,7 @@ function classify(features) {
   });
 }
 
-// 스켈레톤 그리기
+// [수정됨] 스켈레톤 그리기 (좌우 반전 보정)
 function drawKeypoints() {
   for (let i = 0; i < predictions.length; i += 1) {
     const prediction = predictions[i];
@@ -186,7 +186,8 @@ function drawKeypoints() {
       else fill(0, 255, 0);         // 나머지는 초록색
       
       noStroke();
-      ellipse(keypoint[0], keypoint[1], 8, 8);
+      // [핵심 수정] x좌표를 반전시켜 비디오와 일치시킴
+      ellipse(width - keypoint[0], keypoint[1], 8, 8);
     }
   }
 }
