@@ -1,6 +1,7 @@
 /**
  * sketch.js
- * Boundary X: AI Gesture Learning [Updated for Image UI]
+ * Boundary X: AI Gesture Learning [Simplified UI]
+ * Camera controls removed. Default: Mirror Mode (isFlipped = true)
  */
 
 // Bluetooth UUIDs
@@ -27,52 +28,27 @@ let trainingList, statusBadge;
 // Data & Settings
 let classes = {}; 
 let isTraining = false;
-let isFlipped = true; 
+let isFlipped = true; // 항상 거울 모드 사용
 let isTracking = false;
-let facingMode = "user"; // "user" (전방) or "environment" (후방)
 
 function setup() {
   let canvas = createCanvas(320, 240);
   canvas.parent('p5-container');
 
-  setupCamera();
-  setupUI();
-  
-  knnClassifier = ml5.KNNClassifier();
-}
-
-function setupCamera() {
-  // 카메라 설정 (전후방 전환 지원)
-  let constraints = {
-    video: {
-      facingMode: facingMode,
-      width: { ideal: 320 },
-      height: { ideal: 240 }
-    },
-    audio: false
-  };
-
-  if(video) {
-      video.remove(); // 기존 비디오 제거
-  }
-  
-  video = createCapture(constraints);
+  // 1. 비디오 설정
+  video = createCapture(VIDEO);
   video.size(320, 240);
   video.hide();
 
-  // Handpose 재로딩
-  if(statusBadge) statusBadge.html("모델 로딩 중...");
+  // 2. ML 설정
   handpose = ml5.handpose(video, modelReady);
   handpose.on("predict", results => {
     predictions = results;
   });
-}
+  knnClassifier = ml5.KNNClassifier();
 
-function switchCamera() {
-  facingMode = (facingMode === "user") ? "environment" : "user";
-  // 후방 카메라일때는 거울모드 해제하는게 자연스러움
-  isFlipped = (facingMode === "user"); 
-  setupCamera();
+  // 3. UI 설정
+  setupUI();
 }
 
 function modelReady() {
@@ -95,18 +71,7 @@ function setupUI() {
   addDataBtn.mouseReleased(() => isTraining = false);
   resetBtn.mousePressed(clearAllModel);
 
-  // --- [1. 카메라 설정] ---
-  let flipBtn = createButton("좌우 반전");
-  flipBtn.parent('camera-control-buttons');
-  flipBtn.addClass('start-button');
-  flipBtn.mousePressed(() => isFlipped = !isFlipped);
-
-  let switchCamBtn = createButton("전후방 전환");
-  switchCamBtn.parent('camera-control-buttons');
-  switchCamBtn.addClass('start-button');
-  switchCamBtn.mousePressed(switchCamera);
-
-  // --- [2. 기기 연결] ---
+  // --- [1. 기기 연결] ---
   let connectBtn = createButton("기기 연결");
   connectBtn.parent('bluetooth-control-buttons');
   connectBtn.addClass('start-button');
@@ -117,7 +82,7 @@ function setupUI() {
   disconnectBtn.addClass('stop-button');
   disconnectBtn.mousePressed(disconnectBluetooth);
 
-  // --- [3. AI 인식 제어] ---
+  // --- [2. AI 인식 제어] ---
   let startTrackBtn = createButton("인식 시작");
   startTrackBtn.parent('recognition-control-buttons');
   startTrackBtn.addClass('start-button');
@@ -142,18 +107,20 @@ function setupUI() {
 function draw() {
   background(0);
 
+  // 1. 그리기 (거울 모드 고정)
   push();
   if (isFlipped) {
       translate(width, 0);
       scale(-1, 1);
   }
   
-  if (video && video.elt.readyState >= 2) {
+  if (video.elt.readyState >= 2) {
       image(video, 0, 0, width, height);
       drawKeypoints(); 
   }
   pop();
 
+  // 2. 로직 처리
   if (predictions.length > 0) {
     let hand = predictions[0];
     let features = extractRelativeFeatures(hand);
