@@ -1,8 +1,7 @@
 /**
  * sketch.js
- * Boundary X: AI Handpose (Improved Algorithm)
- * Engine: ml5 Handpose + KNN Classifier
- * Features: Rotation/Scale/Translation Invariance
+ * Boundary X: AI Handpose (Corrected Drawing & Sizing)
+ * Features: Skeleton Drawing Fix, 4:3 Ratio, Robust Recognition
  */
 
 // Bluetooth UUIDs
@@ -39,7 +38,7 @@ let canvas;
 
 // Camera
 let facingMode = "user";
-let isFlipped = false;
+let isFlipped = true; // 기본적으로 거울 모드
 let isVideoLoaded = false;
 
 function setup() {
@@ -101,8 +100,68 @@ function stopVideo() {
     }
 }
 
+// === [핵심] 손 그리기 (좌표 변환 포함) ===
+function draw() {
+  background(0);
+
+  if (!isVideoLoaded) {
+      fill(255);
+      textAlign(CENTER);
+      text("카메라 로딩 중...", width/2, height/2);
+      return;
+  }
+
+  push(); // 변환 시작
+  
+  if (isFlipped) {
+    translate(width, 0);
+    scale(-1, 1);
+  }
+  
+  // 1. 비디오 그리기
+  image(video, 0, 0, width, height);
+  
+  // 2. [수정] 스켈레톤 그리기를 push/pop 안으로 이동
+  // 이제 좌표계가 반전된 상태에서 그려지므로 영상과 일치합니다.
+  drawKeypoints();
+  drawSkeleton();
+  
+  pop(); // 변환 종료
+}
+
+function drawKeypoints() {
+  for (let i = 0; i < predictions.length; i += 1) {
+    const prediction = predictions[i];
+    for (let j = 0; j < prediction.landmarks.length; j += 1) {
+      const keypoint = prediction.landmarks[j];
+      fill(0, 255, 0); // 초록색 점
+      noStroke();
+      ellipse(keypoint[0], keypoint[1], 10, 10);
+    }
+  }
+}
+
+function drawSkeleton() {
+  for (let i = 0; i < predictions.length; i += 1) {
+    const prediction = predictions[i];
+    const annotations = prediction.annotations;
+    stroke(0, 255, 0); // 초록색 선
+    strokeWeight(3);
+
+    const parts = [
+        annotations.thumb, annotations.indexFinger, 
+        annotations.middleFinger, annotations.ringFinger, annotations.pinky
+    ];
+
+    parts.forEach(part => {
+        for (let j = 0; j < part.length - 1; j++) {
+             line(part[j][0], part[j][1], part[j+1][0], part[j+1][1]);
+        }
+    });
+  }
+}
+
 // === [핵심 알고리즘] 손 데이터 정규화 ===
-// 기능: 손을 돌리거나(회전), 멀리 하거나(크기), 이동해도(위치) 똑같은 모양으로 변환
 function getStandardizedLandmarks(landmarks) {
     // 1. 기준점: 손목(0번)
     const wrist = landmarks[0];
@@ -117,7 +176,7 @@ function getStandardizedLandmarks(landmarks) {
     // 크기(Scale): 손목~중지뿌리 거리
     const scale = Math.sqrt(baseDeltaX * baseDeltaX + baseDeltaY * baseDeltaY);
     
-    // 각도(Angle): 현재 각도 계산 후, 수직(-90도)이 되도록 회전할 각도 구하기
+    // 각도(Angle): 수직 정렬을 위한 회전 각도
     const angle = Math.atan2(baseDeltaY, baseDeltaX);
     const rotationAngle = -Math.PI / 2 - angle; 
     
@@ -126,21 +185,20 @@ function getStandardizedLandmarks(landmarks) {
 
     let standardizedFeatures = [];
 
-    // 3. 모든 21개 점에 대해 변환 수행
+    // 3. 변환 수행
     for (let i = 0; i < landmarks.length; i++) {
-        // (1) 평행이동 (손목을 0,0으로)
+        // (1) 평행이동
         let dx = landmarks[i][0] - wristX;
         let dy = landmarks[i][1] - wristY;
         
-        // (2) 크기 정규화 (거리에 상관없이 일정 크기로)
+        // (2) 크기 정규화
         dx /= scale;
         dy /= scale;
         
-        // (3) 회전 변환 (기울기에 상관없이 수직으로)
+        // (3) 회전 변환
         let nx = dx * cos - dy * sin;
         let ny = dx * sin + dy * cos;
         
-        // Z축은 깊이 정보이므로 스케일만 적용
         let nz = (landmarks[i][2] || 0) / scale;
 
         standardizedFeatures.push(nx, ny, nz);
@@ -149,7 +207,7 @@ function getStandardizedLandmarks(landmarks) {
     return standardizedFeatures;
 }
 
-// === UI 생성 ===
+// === UI 생성 및 이벤트 ===
 function createUI() {
   classInput = select('#class-input');
   addClassBtn = select('#add-class-btn');
@@ -206,6 +264,8 @@ function switchCamera() {
   stopVideo();
   isVideoLoaded = false;
   facingMode = facingMode === "user" ? "environment" : "user";
+  // 후면 카메라는 반전 안 함
+  isFlipped = (facingMode === "user"); 
   setTimeout(setupCamera, 500);
 }
 
@@ -263,8 +323,6 @@ function addExample(labelId) {
     
     if (predictions.length > 0) {
         const landmarks = predictions[0].landmarks;
-        
-        // [적용] 정규화된 데이터 학습
         const features = getStandardizedLandmarks(landmarks);
         
         knnClassifier.addExample(features, labelId);
@@ -337,10 +395,7 @@ function classify() {
     
     if (predictions.length > 0) {
          const landmarks = predictions[0].landmarks;
-         
-         // [적용] 예측 시에도 동일한 정규화 수행
          const features = getStandardizedLandmarks(landmarks);
-         
          knnClassifier.classify(features, gotResults);
     } else {
         requestAnimationFrame(classify);
@@ -381,81 +436,20 @@ function gotResults(error, result) {
     }
 }
 
-// === P5 그리기 (스켈레톤 시각화) ===
-
-function draw() {
-  background(0);
-
-  if (!isVideoLoaded) {
-      fill(255);
-      textAlign(CENTER);
-      text("카메라 로딩 중...", width/2, height/2);
-      return;
-  }
-
-  push();
-  if (isFlipped) {
-    translate(width, 0);
-    scale(-1, 1);
-  }
-  image(video, 0, 0, width, height);
-  
-  // 손 뼈대 그리기
-  drawKeypoints();
-  drawSkeleton();
-  pop();
-}
-
-function drawKeypoints() {
-  for (let i = 0; i < predictions.length; i += 1) {
-    const prediction = predictions[i];
-    for (let j = 0; j < prediction.landmarks.length; j += 1) {
-      const keypoint = prediction.landmarks[j];
-      fill(0, 255, 0);
-      noStroke();
-      ellipse(keypoint[0], keypoint[1], 8, 8);
-    }
-  }
-}
-
-function drawSkeleton() {
-  for (let i = 0; i < predictions.length; i += 1) {
-    const prediction = predictions[i];
-    const annotations = prediction.annotations;
-    stroke(0, 255, 0);
-    strokeWeight(2);
-
-    const parts = [
-        annotations.thumb, annotations.indexFinger, 
-        annotations.middleFinger, annotations.ringFinger, annotations.pinky
-    ];
-
-    parts.forEach(part => {
-        for (let j = 0; j < part.length - 1; j++) {
-             line(part[j][0], part[j][1], part[j+1][0], part[j+1][1]);
-        }
-    });
-  }
-}
-
-/* --- Bluetooth Logic --- */
-
+/* --- Bluetooth Logic (기존 동일) --- */
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: "BBC micro:bit" }],
       optionalServices: [UART_SERVICE_UUID]
     });
-
     const server = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
     rxCharacteristic = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
     txCharacteristic = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
-
     isConnected = true;
     bluetoothStatus = "연결됨: " + bluetoothDevice.name;
     updateBluetoothStatusUI(true);
-    
   } catch (error) {
     console.error("Connection failed", error);
     bluetoothStatus = "연결 실패";
@@ -481,19 +475,14 @@ function updateBluetoothStatusUI(connected = false, error = false) {
       statusElement.html(`상태: ${bluetoothStatus}`);
       statusElement.removeClass('status-connected');
       statusElement.removeClass('status-error');
-      
-      if (connected) {
-        statusElement.addClass('status-connected');
-      } else if (error) {
-        statusElement.addClass('status-error');
-      }
+      if (connected) statusElement.addClass('status-connected');
+      else if (error) statusElement.addClass('status-error');
   }
 }
 
 async function sendBluetoothData(data) {
   if (!rxCharacteristic || !isConnected) return;
   if (isSendingData) return;
-
   try {
     isSendingData = true;
     const encoder = new TextEncoder();
