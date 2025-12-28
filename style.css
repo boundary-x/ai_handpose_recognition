@@ -1,4 +1,4 @@
-/* style.css - Boundary X: Handpose & Sync (Final 4:3 Version) */
+/* style.css - Boundary X: Handpose & Sync (Final Dynamic Version) */
 
 :root {
   /* Palette */
@@ -107,26 +107,31 @@ main {
   gap: 2rem;
 }
 
-/* Canvas Area (Modified for 4:3 Aspect Ratio) */
+/* [핵심 수정] Canvas Area (Dynamic Sizing) */
 .canvas-container { 
     width: 100%;
-    /* 4:3 비율의 최대 사이즈 (PC 기준) */
     max-width: 640px; 
-    /* 비율을 4:3으로 고정 */
-    aspect-ratio: 4/3;
+    /* 고정 높이나 비율(aspect-ratio)을 제거하여 내부 콘텐츠(캔버스) 크기에 맞춰짐 */
+    height: auto;
     border-radius: var(--radius-card);
     overflow: hidden;
     background: #000;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     position: relative;
     flex-shrink: 0;
+    
+    /* 캔버스 중앙 정렬 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 240px; /* 로딩 전 최소 높이 확보 */
 }
 
 canvas { 
     display: block; 
-    /* 캔버스가 컨테이너를 가득 채우도록 강제 */
+    /* 가로를 꽉 채우고 높이는 비율대로 자동 설정 */
     width: 100% !important; 
-    height: 100% !important; 
+    height: auto !important; 
     object-fit: contain; 
 }
 
@@ -611,8 +616,8 @@ address {
   margin-top: 4px;
 }
 
-/* --- Responsive (Updated for 4:3) --- */
-@media (min-width: 900px) { /* 넓은 화면 기준점 조정 */
+/* --- Responsive --- */
+@media (min-width: 900px) { /* 넓은 화면 기준점 */
   main {
     flex-direction: row;       
     align-items: flex-start;   
@@ -623,7 +628,6 @@ address {
   .canvas-container {
     position: sticky; 
     top: 2rem;        
-    /* PC화면에서도 640px 유지 */
     width: 640px; 
   }
 
@@ -638,7 +642,6 @@ address {
 
   .canvas-container {
     width: 100% !important;            
-    /* 모바일에서는 화면 꽉 차게 */
     max-width: 100% !important; 
     margin: 0 auto !important;   
   }
