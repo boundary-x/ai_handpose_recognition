@@ -55,6 +55,10 @@ let classInput;
 let resultLabel, resultConf, btDataDisplay;
 let trainingList, statusBadge;
 
+// p5.js의 전역 mousePressed를 빈 함수로 override
+// 이게 없으면 Chrome에서 p5.js가 캔버스 외부 버튼 클릭까지 소비해서 이벤트가 안 잡힘
+function mousePressed() {}
+
 // =============================================
 // MediaPipe 초기화 (동적 import)
 // =============================================
