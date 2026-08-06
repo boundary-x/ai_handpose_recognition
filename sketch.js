@@ -13,7 +13,7 @@ let bluetoothDevice, rxCharacteristic, isConnected = false;
 let bluetoothStatus = "연결 대기 중";
 let isSendingData = false;
 let lastSendTime = 0;
-let btQueue = []; // 
+let btQueue = []; // ✨ 데이터 유실 방지를 위한 큐 시스템
 
 let video;
 let knnClassifier;
@@ -91,7 +91,7 @@ function setupUI() {
   resultConf = select('#result-conf');
   btDataDisplay = select('#bluetooth-data-display');
 
-
+  // ✨ 개선: 조용히 무시되는 현상 수정 (모델 미준비/손 미인식 시 경고 UI)
   // pointerdown/up을 사용하여 모바일 터치와 마우스 클릭 모두 완벽 지원
   addDataBtn.elt.addEventListener('pointerdown', () => {
     if (!isModelReady) {
@@ -144,7 +144,7 @@ function setupUI() {
   stopTrackBtn.addClass('stop-button');
   stopTrackBtn.elt.addEventListener('click', () => { 
       isTracking = false; 
-      sendBluetoothData("stop", true); // 
+      sendBluetoothData("stop", true); // ✨ 개선: 긴급 정지 플래그(true) 전송
       btDataDisplay.html("전송 중지됨");
       btDataDisplay.style('color', '#EA4335'); 
   });
@@ -308,6 +308,7 @@ function clearAllModel() {
   lastLabel = "";
 }
 
+/* --- ✨ 완벽하게 개선된 Bluetooth Logic --- */
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
@@ -315,6 +316,7 @@ async function connectBluetooth() {
       optionalServices: [UART_SERVICE_UUID]
     });
     
+    // ✨ 개선: 기기 연결 단절(물리적 이탈, 전원 꺼짐 등) 이벤트 등록
     bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
     const server = await bluetoothDevice.gatt.connect();
@@ -339,6 +341,7 @@ function disconnectBluetooth() {
   }
 }
 
+// ✨ 개선: 단절 이벤트 처리 함수
 function onDisconnected() {
   isConnected = false;
   isSendingData = false;
@@ -364,6 +367,7 @@ function updateBluetoothStatusUI(connected = false, error = false) {
   }
 }
 
+// ✨ 개선: Queue를 통한 데이터 유실 방지 및 타임아웃 처리
 async function sendBluetoothData(data, isUrgent = false) {
   if (!rxCharacteristic || !isConnected) return;
   
@@ -389,6 +393,7 @@ async function processQueue() {
     const encoder = new TextEncoder();
     const value = encoder.encode(data + "\n");
     
+    // ✨ 개선: 무한 대기 방지용 타임아웃 2초(2000ms) 프로미스
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error("Timeout (응답 없음)")), 2000);
     });
@@ -401,6 +406,7 @@ async function processQueue() {
     
   } catch (error) {
     console.error("BT Send Error:", error);
+    // ✨ 개선: 에러 발생 시 콘솔뿐만 아니라 UI에도 즉각 피드백
     btDataDisplay.html(`전송 에러: ${error.message}`);
     btDataDisplay.style('color', '#EA4335'); 
   } finally {
