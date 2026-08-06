@@ -1,341 +1,315 @@
 /**
  * sketch.js
- * Boundary X: AI 핸드포즈학습 [Pure JS - p5.js]
+ * Boundary X: AI Gesture Learning [MediaPipe + 모바일 최적화 버전]
+ * Feature: MediaPipe Hands 적용, 분석 횟수 제한(Throttling) 및 UI 렌더링 최적화
  */
 
-// === Bluetooth UUIDs ===
+// Bluetooth UUIDs
 const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const UART_RX_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+const UART_TX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+const UART_RX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("BLE write timeout")), ms))
-  ]);
-}
-
-// === BLE State ===
-let bluetoothDevice = null;
-let rxCharacteristic = null;
-let isConnected = false;
+let bluetoothDevice, rxCharacteristic, isConnected = false;
 let bluetoothStatus = "연결 대기 중";
 let isSendingData = false;
-let isManualDisconnect = false;
-let lastSendErrorTime = 0;
 let lastSendTime = 0;
-const SEND_INTERVAL = 100;
 
-// === MediaPipe State ===
-let handLandmarker = null;
+let video;
+let knnClassifier;
+let currentLandmarks = null; // MediaPipe 결과 저장
 let isModelReady = false;
-let lastLandmarks = null;
-let lastVideoTime = -1;
 
-// === KNN State ===
-let trainingData = [];
-const KNN_K = 5;
+// 성능 최적화 변수 (프레임 드랍 방지)
+let lastClassifyTime = 0;
+let lastLabel = ""; 
 
-// === App State ===
-let classes = {};
+// UI Elements
+let classInput, addDataBtn, resetBtn;
+let resultLabel, resultConf, btDataDisplay;
+let trainingList, statusBadge;
+
+// Data & Settings
+let classes = {}; 
 let isTraining = false;
-let lastTrainTime = 0;
-const TRAIN_INTERVAL = 200;
-let isFlipped = true;
+let isFlipped = true; 
 let isTracking = false;
 
-// === Canvas / Video ===
-let canvas, ctx, videoEl;
+function setup() {
+  let canvas = createCanvas(320, 240);
+  canvas.parent('p5-container');
 
-// =============================================
-// 초기화
-// =============================================
-async function init() {
-  // 캔버스 설정
-  canvas = document.getElementById("handpose-canvas");
-  ctx = canvas.getContext("2d");
+  video = createCapture(VIDEO);
+  video.size(320, 240);
+  video.hide();
 
-  // 카메라 설정
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: 320, height: 240 },
-      audio: false
-    });
-    videoEl = document.getElementById("hidden-video");
-    videoEl.srcObject = stream;
-    videoEl.play();
-  } catch (e) {
-    console.error("카메라 오류:", e);
-    setStatus("❌ 카메라를 열 수 없습니다. 권한을 확인해주세요.");
-    return;
-  }
+  // KNN 모델 준비 (데이터 학습용)
+  knnClassifier = ml5.KNNClassifier();
 
-  // MediaPipe 초기화
-  await initMediaPipe();
-
-  // 렌더 루프 시작
-  renderLoop();
+  setupUI();
+  
+  // 구글 MediaPipe 설정 및 실행
+  setupMediaPipe();
 }
 
-async function initMediaPipe() {
-  try {
-    setStatus("MediaPipe 라이브러리 로딩 중...");
-    const m = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8");
-    const vision = await m.FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
-    );
-    handLandmarker = await m.HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath:
-          "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-        delegate: "GPU"
-      },
-      runningMode: "VIDEO",
-      numHands: 1
-    });
-    isModelReady = true;
-    setStatus("✅ 준비 완료! 제스처를 학습시키세요.");
-    console.log("MediaPipe HandLandmarker Ready");
-  } catch (e) {
-    console.error("MediaPipe 초기화 실패:", e);
-    setStatus("❌ 모델 로드 실패. 페이지를 새로고침 해주세요.");
-  }
-}
+function setupMediaPipe() {
+  const hands = new Hands({locateFile: (file) => {
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+  }});
 
-// =============================================
-// 렌더 + 추론 루프 (하나의 루프로 통합)
-// =============================================
-function renderLoop() {
-  requestAnimationFrame(renderLoop);
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 0, // 0이 가장 가볍고 빠름 (모바일/태블릿용)
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
 
-  if (!videoEl || videoEl.readyState < 2) return;
-
-  // 1. 캔버스에 카메라 그리기 (거울 모드)
-  ctx.save();
-  if (isFlipped) {
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-  }
-  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  ctx.restore();
-
-  // 2. 추론
-  if (isModelReady && videoEl.currentTime !== lastVideoTime) {
-    lastVideoTime = videoEl.currentTime;
-    try {
-      const result = handLandmarker.detectForVideo(videoEl, performance.now());
-      lastLandmarks = (result.landmarks && result.landmarks.length > 0)
-        ? result.landmarks[0] : null;
-    } catch (e) { console.error(e); }
-  }
-
-  // 3. 랜드마크 그리기
-  if (lastLandmarks) drawLandmarks(lastLandmarks);
-
-  // 4. 학습 / 인식
-  if (!lastLandmarks) return;
-  const features = extractFeatures(lastLandmarks);
-
-  if (isTraining) {
-    if (!isModelReady) { setStatus("⚠️ 모델 로딩 중입니다."); return; }
-    const label = document.getElementById("class-input").value.trim();
-    if (label && performance.now() - lastTrainTime > TRAIN_INTERVAL) {
-      addExample(features, label);
-      lastTrainTime = performance.now();
+  hands.onResults((results) => {
+    // 손이 인식되면 좌표 데이터를 저장
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+      currentLandmarks = results.multiHandLandmarks[0];
+    } else {
+      currentLandmarks = null;
     }
-  } else if (isTracking && trainingData.length > 0) {
-    classifyKNN(features);
+  });
+
+  // 비디오 프레임을 MediaPipe로 전달
+  const camera = new Camera(video.elt, {
+    onFrame: async () => {
+      await hands.send({image: video.elt});
+    },
+    width: 320,
+    height: 240
+  });
+  camera.start();
+
+  console.log("MediaPipe Ready");
+  isModelReady = true;
+  if(statusBadge) statusBadge.html("준비 완료! 제스처를 학습시키세요.");
+}
+
+function setupUI() {
+  statusBadge = select('#status-badge');
+  classInput = select('#class-input');
+  addDataBtn = select('#add-data-btn');
+  resetBtn = select('#reset-btn');
+  trainingList = select('#training-list');
+  resultLabel = select('#result-label');
+  resultConf = select('#result-conf');
+  btDataDisplay = select('#bluetooth-data-display');
+
+  addDataBtn.mousePressed(() => isTraining = true);
+  addDataBtn.mouseReleased(() => isTraining = false);
+  resetBtn.mousePressed(clearAllModel);
+
+  let connectBtn = createButton("기기 연결");
+  connectBtn.parent('bluetooth-control-buttons');
+  connectBtn.addClass('start-button');
+  connectBtn.mousePressed(connectBluetooth);
+
+  let disconnectBtn = createButton("연결 해제");
+  disconnectBtn.parent('bluetooth-control-buttons');
+  disconnectBtn.addClass('stop-button');
+  disconnectBtn.mousePressed(disconnectBluetooth);
+
+  let startTrackBtn = createButton("인식 시작");
+  startTrackBtn.parent('recognition-control-buttons');
+  startTrackBtn.addClass('start-button');
+  startTrackBtn.mousePressed(() => { 
+      isTracking = true; 
+      btDataDisplay.html("데이터 분석 중...");
+      btDataDisplay.style('color', '#0f0'); 
+  });
+
+  let stopTrackBtn = createButton("인식 중지");
+  stopTrackBtn.parent('recognition-control-buttons');
+  stopTrackBtn.addClass('stop-button');
+  stopTrackBtn.mousePressed(() => { 
+      isTracking = false; 
+      sendBluetoothData("stop");
+      btDataDisplay.html("전송 중지됨");
+      btDataDisplay.style('color', '#EA4335'); 
+  });
+
+  updateBluetoothStatusUI();
+}
+
+function draw() {
+  background(0);
+
+  // 화면 그리기 (거울 모드)
+  push();
+  if (isFlipped) {
+      translate(width, 0);
+      scale(-1, 1);
+  }
+  
+  if (video.elt.readyState >= 2) {
+      image(video, 0, 0, width, height);
+      if (currentLandmarks) {
+          drawKeypoints(currentLandmarks);
+      }
+  }
+  pop();
+
+  // 손이 화면에 인식되었을 때
+  if (currentLandmarks) {
+    let features = extractRelativeFeatures(currentLandmarks);
+
+    if (isTraining) {
+      let label = classInput.value().trim();
+      if (label) addExample(features, label);
+    } 
+    else if (knnClassifier.getNumLabels() > 0) {
+      // ✨ 성능 최적화: 150ms 마다 한 번씩만 분석 실행 (과부하 방지)
+      if (millis() - lastClassifyTime > 150) {
+        classify(features);
+        lastClassifyTime = millis();
+      }
+    }
   }
 }
 
-// =============================================
-// 특징 추출
-// =============================================
-function extractFeatures(landmarks) {
-  const wrist = landmarks[0];
+/**
+ * 손목 기준 상대 좌표 변환 (거리 및 크기 무시)
+ */
+function extractRelativeFeatures(landmarks) {
+  let features = [];
+  let wrist = landmarks[0]; 
+
   let maxDist = 0;
   for (let i = 1; i < landmarks.length; i++) {
-    const dx = landmarks[i].x - wrist.x;
-    const dy = landmarks[i].y - wrist.y;
-    const d = Math.sqrt(dx * dx + dy * dy);
-    if (d > maxDist) maxDist = d;
+      let dx = landmarks[i].x - wrist.x;
+      let dy = landmarks[i].y - wrist.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > maxDist) maxDist = dist;
   }
-  if (maxDist < 0.001) maxDist = 0.001;
-  const features = [];
+  
+  if (maxDist < 0.0001) maxDist = 0.0001;
+
   for (let i = 1; i < landmarks.length; i++) {
-    features.push((landmarks[i].x - wrist.x) / maxDist);
-    features.push((landmarks[i].y - wrist.y) / maxDist);
+    // MediaPipe 좌표 구조(.x, .y)에 맞춰 변경됨
+    let relativeX = (landmarks[i].x - wrist.x) / maxDist;
+    let relativeY = (landmarks[i].y - wrist.y) / maxDist;
+    
+    features.push(relativeX);
+    features.push(relativeY);
   }
-  return features;
+  
+  return features; 
 }
 
-// =============================================
-// KNN
-// =============================================
 function addExample(features, label) {
-  trainingData.push({ label, features });
+  knnClassifier.addExample(features, label);
   if (!classes[label]) classes[label] = 0;
   classes[label]++;
-
-  // 해당 배지만 실시간 갱신
-  const badge = document.querySelector(`.badge-label[data-label="${label}"] .badge-count`);
-  if (badge) {
-    badge.innerText = `${classes[label]} data`;
-  } else {
-    updateListUI();
+  
+  // UI 업데이트 빈도 조절: 학습 데이터가 10의 배수일 때만 화면 갱신
+  if (classes[label] % 10 === 0 || classes[label] === 1) {
+      updateListUI();
   }
 }
 
-function euclideanDistSq(a, b) {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
-  return sum;
+function classify(features) {
+  knnClassifier.classify(features, (err, result) => {
+    if (err) return;
+    
+    if (result.confidencesByLabel) {
+      const label = result.label;
+      const conf = result.confidencesByLabel[label];
+      
+      // ✨ UI 업데이트 최적화: 결과가 이전과 다를 때만 글씨 변경
+      if (label !== lastLabel || conf < 0.85) {
+          resultLabel.html(label);
+          resultConf.html(`정확도: ${(conf * 100).toFixed(0)}%`);
+          
+          if (conf > 0.85) resultLabel.style('color', '#00E676');
+          else resultLabel.style('color', '#FFEB3B');
+          
+          lastLabel = label;
+      }
+
+      if (isTracking) {
+          if (isConnected && millis() - lastSendTime > 150) {
+              sendBluetoothData(label);
+              lastSendTime = millis();
+              
+              btDataDisplay.html(`전송 데이터: ${label}`);
+              btDataDisplay.style('color', '#00E676');
+          } else if (!isConnected) {
+              btDataDisplay.html(`전송 데이터: ${label} (연결 안됨)`);
+              btDataDisplay.style('color', '#FFEB3B');
+          }
+      }
+    }
+  });
 }
 
-function classifyKNN(features) {
-  if (trainingData.length === 0) return;
-  const dists = trainingData.map(d => ({
-    label: d.label,
-    distSq: euclideanDistSq(features, d.features)
-  }));
-  dists.sort((a, b) => a.distSq - b.distSq);
-  const kNearest = dists.slice(0, KNN_K);
-  const votes = {};
-  for (const n of kNearest) votes[n.label] = (votes[n.label] || 0) + 1;
-  const label = Object.keys(votes).reduce((a, b) => votes[a] > votes[b] ? a : b);
-  const conf = votes[label] / KNN_K;
-
-  const resultLabel = document.getElementById("result-label");
-  const resultConf  = document.getElementById("result-conf");
-  const btDisplay   = document.getElementById("bluetooth-data-display");
-
-  if (resultLabel) { resultLabel.textContent = label; resultLabel.style.color = conf >= 0.85 ? "#00E676" : "#FFEB3B"; }
-  if (resultConf)  resultConf.textContent = `정확도: ${(conf * 100).toFixed(0)}%`;
-
-  let msg = `전송 데이터: ${label}`;
-  if (!isConnected) msg += " (연결 안됨)";
-  if (btDisplay) { btDisplay.textContent = msg; btDisplay.style.color = "#00E676"; }
-
-  if (isConnected && Date.now() - lastSendTime > SEND_INTERVAL) {
-    sendBluetoothData(label);
-    lastSendTime = Date.now();
+function drawKeypoints(landmarks) {
+  for (let j = 0; j < landmarks.length; j += 1) {
+    // MediaPipe는 0~1 사이의 비율 값을 주므로 너비/높이를 곱해줌
+    let x = landmarks[j].x * width;
+    let y = landmarks[j].y * height;
+    
+    if (j === 0) fill(255, 0, 0); 
+    else fill(0, 255, 0);         
+    noStroke();
+    ellipse(x, y, 8, 8);
   }
-}
-
-// =============================================
-// 랜드마크 시각화
-// =============================================
-function drawLandmarks(landmarks) {
-  const W = canvas.width, H = canvas.height;
-  const connections = [
-    [0,1],[1,2],[2,3],[3,4],
-    [0,5],[5,6],[6,7],[7,8],
-    [0,9],[9,10],[10,11],[11,12],
-    [0,13],[13,14],[14,15],[15,16],
-    [0,17],[17,18],[18,19],[19,20],
-    [5,9],[9,13],[13,17]
-  ];
-
-  ctx.strokeStyle = "rgb(0,200,0)";
-  ctx.lineWidth = 2;
-  for (const [a, b] of connections) {
-    let ax = landmarks[a].x * W, ay = landmarks[a].y * H;
-    let bx = landmarks[b].x * W, by = landmarks[b].y * H;
-    if (isFlipped) { ax = W - ax; bx = W - bx; }
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-  }
-
-  for (let i = 0; i < landmarks.length; i++) {
-    let x = landmarks[i].x * W;
-    let y = landmarks[i].y * H;
-    if (isFlipped) x = W - x;
-    ctx.fillStyle = i === 0 ? "rgb(255,0,0)" : "rgb(0,255,0)";
-    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
-  }
-}
-
-// =============================================
-// UI
-// =============================================
-function setStatus(msg) {
-  const el = document.getElementById("status-badge");
-  if (el) el.textContent = msg;
 }
 
 function updateListUI() {
-  const list = document.getElementById("training-list");
-  if (!list) return;
-  list.innerHTML = "";
+  trainingList.html("");
   if (Object.keys(classes).length === 0) {
-    list.innerHTML = '<div class="empty-msg">아직 학습된 데이터가 없습니다.</div>';
-    return;
+      trainingList.html('<div class="empty-msg">아직 학습된 데이터가 없습니다.</div>');
+      return;
   }
-  for (const label in classes) {
-    const li   = document.createElement("div"); li.className = "list-item";
-    const left = document.createElement("div"); left.className = "list-item-left badge-label"; left.dataset.label = label;
-    const nameSpan  = document.createElement("span"); nameSpan.textContent = label;
-    const countSpan = document.createElement("span"); countSpan.className = "badge-count"; countSpan.textContent = `${classes[label]} data`;
-    left.appendChild(nameSpan); left.appendChild(countSpan); li.appendChild(left);
-    const delBtn = document.createElement("button"); delBtn.className = "delete-btn"; delBtn.textContent = "X";
-    delBtn.addEventListener("click", () => deleteClass(label));
-    li.appendChild(delBtn);
-    list.appendChild(li);
+
+  for (let label in classes) {
+    let li = createDiv().addClass('list-item');
+    let left = createDiv().addClass('list-item-left');
+    createSpan(label).parent(left);
+    createSpan(`${classes[label]} data`).addClass('badge-count').parent(left);
+    left.parent(li);
+
+    let delBtn = createButton('X').addClass('delete-btn');
+    delBtn.mousePressed(() => deleteClass(label));
+    delBtn.parent(li);
+
+    li.parent(trainingList);
   }
 }
 
 function deleteClass(label) {
-  trainingData = trainingData.filter(d => d.label !== label);
-  delete classes[label];
-  updateListUI();
-  const rl = document.getElementById("result-label");
-  const rc = document.getElementById("result-conf");
-  if (rl) rl.textContent = "대기 중";
-  if (rc) rc.textContent = "데이터 삭제됨";
+    if(knnClassifier) {
+        knnClassifier.clearLabel(label);
+        delete classes[label];
+        updateListUI();
+        resultLabel.html("대기 중");
+        resultConf.html("데이터 삭제됨");
+        lastLabel = "";
+    }
 }
 
-// =============================================
-// 전역 함수 (버튼에서 호출)
-// =============================================
 function clearAllModel() {
-  trainingData = []; classes = {};
+  knnClassifier.clearAllLabels();
+  classes = {};
   updateListUI();
-  const rl = document.getElementById("result-label");
-  const rc = document.getElementById("result-conf");
-  if (rl) { rl.textContent = "대기 중"; rl.style.color = "#00E676"; }
-  if (rc) rc.textContent = "데이터 없음";
+  resultLabel.html("대기 중");
+  resultLabel.style('color', '#00E676');
+  resultConf.html("데이터 없음");
+  lastLabel = "";
 }
 
-function startTraining() { isTraining = true; }
-function stopTraining()  { isTraining = false; }
-
-function startTracking() {
-  isTracking = true;
-  const el = document.getElementById("bluetooth-data-display");
-  if (el) { el.textContent = "데이터 분석 중..."; el.style.color = "#0f0"; }
-}
-
-async function stopTracking(sendStopSignal = true) {
-  isTracking = false;
-  const el = document.getElementById("bluetooth-data-display");
-  if (el) { el.textContent = "전송 중지됨"; el.style.color = "#EA4335"; }
-  if (!sendStopSignal) return;
-  const sent = await sendBluetoothDataReliable("stop");
-  if (!sent && isConnected && el) el.textContent = "⚠️ 정지 신호 전송 실패";
-}
-
-// =============================================
-// Bluetooth
-// =============================================
+/* --- Bluetooth Logic --- */
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: "BBC micro:bit" }],
       optionalServices: [UART_SERVICE_UUID]
     });
-    const server  = await bluetoothDevice.gatt.connect();
+    const server = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
-    rxCharacteristic = await service.getCharacteristic(UART_RX_UUID);
-    bluetoothDevice.addEventListener("gattserverdisconnected", onDisconnected);
+    rxCharacteristic = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
     isConnected = true;
     bluetoothStatus = "연결됨: " + bluetoothDevice.name;
     updateBluetoothStatusUI(true);
@@ -348,66 +322,36 @@ async function connectBluetooth() {
 
 function disconnectBluetooth() {
   if (bluetoothDevice && bluetoothDevice.gatt.connected) {
-    isManualDisconnect = true;
     bluetoothDevice.gatt.disconnect();
-  } else {
-    isConnected = false; rxCharacteristic = null; bluetoothDevice = null;
-    bluetoothStatus = "연결 해제됨";
-    updateBluetoothStatusUI(false);
   }
-}
-
-function onDisconnected() {
-  isConnected = false; rxCharacteristic = null; bluetoothDevice = null;
-  const wasTracking = isTracking;
-  if (isTracking) stopTracking(false);
-  bluetoothStatus = isManualDisconnect ? "연결 해제됨" : "연결이 끊어졌습니다. 다시 연결해주세요.";
-  updateBluetoothStatusUI(false, !isManualDisconnect);
-  const el = document.getElementById("bluetooth-data-display");
-  if (wasTracking && el) {
-    el.textContent = isManualDisconnect ? "연결 해제로 인식이 중지되었습니다" : "⚠️ 연결이 끊어져 인식이 자동으로 중지되었습니다";
-    el.style.color = isManualDisconnect ? "#888" : "#EA4335";
-  }
-  isManualDisconnect = false;
+  isConnected = false;
+  bluetoothStatus = "연결 해제됨";
+  rxCharacteristic = null;
+  bluetoothDevice = null;
+  updateBluetoothStatusUI(false);
 }
 
 function updateBluetoothStatusUI(connected = false, error = false) {
-  const el = document.getElementById("bluetoothStatus");
-  if (!el) return;
-  el.textContent = `상태: ${bluetoothStatus}`;
-  el.classList.remove("status-connected", "status-error");
-  if (connected) el.classList.add("status-connected");
-  else if (error) el.classList.add("status-error");
+  const statusElement = select('#bluetoothStatus');
+  if(statusElement) {
+      statusElement.html(`상태: ${bluetoothStatus}`);
+      statusElement.removeClass('status-connected');
+      statusElement.removeClass('status-error');
+      if (connected) statusElement.addClass('status-connected');
+      else if (error) statusElement.addClass('status-error');
+  }
 }
 
 async function sendBluetoothData(data) {
-  if (!rxCharacteristic || !isConnected) return false;
-  if (isSendingData) return false;
+  if (!rxCharacteristic || !isConnected) return;
+  if (isSendingData) return;
   try {
     isSendingData = true;
-    await withTimeout(rxCharacteristic.writeValue(new TextEncoder().encode(data + "\n")), 2000);
-    return true;
+    const encoder = new TextEncoder();
+    await rxCharacteristic.writeValue(encoder.encode(data + "\n"));
   } catch (error) {
     console.error(error);
-    const now = Date.now();
-    if (now - lastSendErrorTime > 3000) {
-      lastSendErrorTime = now;
-      bluetoothStatus = "⚠️ 데이터 전송 실패";
-      updateBluetoothStatusUI(false, true);
-    }
-    return false;
   } finally {
     isSendingData = false;
   }
 }
-
-async function sendBluetoothDataReliable(data, maxRetries = 5, retryDelayMs = 80) {
-  for (let i = 0; i < maxRetries; i++) {
-    if (await sendBluetoothData(data)) return true;
-    await new Promise(r => setTimeout(r, retryDelayMs));
-  }
-  return false;
-}
-
-// 페이지 로드 시 초기화
-window.addEventListener("load", init);
