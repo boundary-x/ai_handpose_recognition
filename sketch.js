@@ -43,7 +43,6 @@ const KNN_K = 5;
 let video;
 let classes = {};
 let isTraining = false;
-let pendingTrainUpdate = false;
 let lastTrainTime = 0;       // 학습 데이터 수집 간격 제한용
 const TRAIN_INTERVAL = 200;  // ms — 0.2초마다 1개 수집
 let isFlipped = true;
@@ -161,7 +160,6 @@ function draw() {
     if (label && millis() - lastTrainTime > TRAIN_INTERVAL) {
       addExample(features, label);
       lastTrainTime = millis();
-      pendingTrainUpdate = true;
     }
   } else if (isTracking && trainingData.length > 0) {
     classifyKNN(features);
@@ -203,6 +201,19 @@ function addExample(features, label) {
   trainingData.push({ label, features });
   if (!classes[label]) classes[label] = 0;
   classes[label]++;
+
+  // 목록 전체를 다시 그리지 않고 해당 클래스 배지만 즉시 갱신 (실시간 카운트 표시)
+  const badges = document.querySelectorAll(".badge-label");
+  let found = false;
+  for (const badge of badges) {
+    if (badge.dataset.label === label) {
+      badge.querySelector(".badge-count").innerText = `${classes[label]} data`;
+      found = true;
+      break;
+    }
+  }
+  // 아직 목록에 없는 새 클래스면 전체 목록을 한 번 그림
+  if (!found) updateListUI();
 }
 
 function classifyKNN(features) {
@@ -278,7 +289,8 @@ function updateListUI() {
   }
   for (const label in classes) {
     const li   = createDiv().addClass("list-item");
-    const left = createDiv().addClass("list-item-left");
+    const left = createDiv().addClass("list-item-left badge-label");
+    left.attribute("data-label", label);  // 실시간 배지 갱신을 위한 식별자
     createSpan(label).parent(left);
     createSpan(`${classes[label]} data`).addClass("badge-count").parent(left);
     left.parent(li);
@@ -320,13 +332,7 @@ function setupUI() {
   btDataDisplay = select("#bluetooth-data-display");
 
   addDataBtn.mousePressed(() => { isTraining = true; });
-  addDataBtn.mouseReleased(() => {
-    isTraining = false;
-    if (pendingTrainUpdate) {
-      updateListUI();
-      pendingTrainUpdate = false;
-    }
-  });
+  addDataBtn.mouseReleased(() => { isTraining = false; });
   resetBtn.mousePressed(clearAllModel);
 
   // 블루투스 버튼
