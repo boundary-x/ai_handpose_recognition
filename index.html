@@ -4,16 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>바운더리엑스 AI 핸드포즈</title>
-  
-  <link rel="icon" href="https://raw.githubusercontent.com/boundary-x/ai_teachable_machine/refs/heads/main/Favicon.png"/> 
-  
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.dom.min.js"></script>
-  
+  <link rel="icon" href="https://raw.githubusercontent.com/boundary-x/ai_teachable_machine/refs/heads/main/Favicon.png"/>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link rel="stylesheet" type="text/css" href="style.css">
 </head>
-
 <body>
   <header>
     <div class="title">
@@ -26,28 +20,30 @@
   </header>
 
   <main>
+    <!-- 캔버스 컨테이너: p5.js 제거로 canvas + video 직접 관리 -->
     <div id="p5-container" class="canvas-container">
       <div id="status-badge" class="status-badge">모델 로딩 중...</div>
+      <canvas id="handpose-canvas" width="320" height="240"></canvas>
+      <video id="hidden-video" width="320" height="240" playsinline style="display:none;"></video>
     </div>
-    
+
     <section class="controls">
 
       <div class="control-group">
         <h3>👋 제스처 데이터 학습</h3>
         <p>동작 이름을 입력하고 <strong>'학습'</strong> 버튼을 꾹 누르세요.</p>
-        
         <div class="input-group">
           <input type="text" id="class-input" placeholder="예: 주먹, 보자기">
-          <button id="add-data-btn" class="start-button">학습 (Hold)</button>
+          <button id="add-data-btn" class="start-button"
+                  onmousedown="startTraining()" onmouseup="stopTraining()" onmouseleave="stopTraining()"
+                  ontouchstart="startTraining()" ontouchend="stopTraining()">학습 (Hold)</button>
         </div>
-
         <div class="divider"></div>
-
         <div id="training-list" class="class-list">
           <div class="empty-msg">아직 학습된 데이터가 없습니다.</div>
         </div>
-        
-        <button id="reset-btn" class="stop-button" style="margin-top: 15px; width: 100%;">🗑️ 모델 전체 초기화</button>
+        <button class="stop-button" style="margin-top: 15px; width: 100%;"
+                onclick="clearAllModel()">🗑️ 모델 전체 초기화</button>
       </div>
 
       <div class="control-group">
@@ -65,8 +61,8 @@
         <p>블루투스 연결 버튼을 클릭해 마이크로비트를 연결해주세요.</p>
         <div id="bluetoothStatus" class="status-box">상태: 연결 대기 중</div>
         <div class="button-group" style="margin-top: 15px;">
-          <button id="connect-btn" class="start-button">기기 연결</button>
-          <button id="disconnect-btn" class="stop-button">연결 해제</button>
+          <button class="start-button" onclick="connectBluetooth()">기기 연결</button>
+          <button class="stop-button"  onclick="disconnectBluetooth()">연결 해제</button>
         </div>
       </div>
 
@@ -74,8 +70,8 @@
         <h3>▎ 2. AI 인식 제어</h3>
         <p>시작 버튼을 눌러 AI 인식 및 데이터 전송을 시작하세요.</p>
         <div class="button-group">
-          <button id="start-track-btn" class="start-button">인식 시작</button>
-          <button id="stop-track-btn" class="stop-button">인식 중지</button>
+          <button class="start-button" onclick="startTracking()">인식 시작</button>
+          <button class="stop-button"  onclick="stopTracking()">인식 중지</button>
         </div>
       </div>
 
@@ -93,28 +89,18 @@
             <p class="copyright">© 2024 Boundary X Co. All rights reserved.</p>
           </address>
         </div>
-
         <div class="footer-links">
           <div class="link-column">
             <h4>제품 소개</h4>
             <ul>
-              <li>
-                <a href="https://boundaryx.io/shop/?idx=25" target="_blank">AI 비트런</a>
-                <span class="link-desc">마이크로비트 기반 이족보행로봇</span>
-              </li>
-              <li>
-                <a href="https://boundaryx.io/shop/?idx=26" target="_blank">AI 포니봇</a>
-                <span class="link-desc">마이크로비트 기반 모빌리티로봇</span>
-              </li>
+              <li><a href="https://boundaryx.io/shop/?idx=25" target="_blank">AI 비트런</a><span class="link-desc">마이크로비트 기반 이족보행로봇</span></li>
+              <li><a href="https://boundaryx.io/shop/?idx=26" target="_blank">AI 포니봇</a><span class="link-desc">마이크로비트 기반 모빌리티로봇</span></li>
             </ul>
           </div>
           <div class="link-column">
             <h4>고객 지원</h4>
             <ul>
-              <li>
-                <a href="https://boundaryx.io/contact" target="_blank">문의처</a>
-                <span class="link-desc">제품 문의 | 제휴 문의 | 연수 문의</span>
-              </li>
+              <li><a href="https://boundaryx.io/contact" target="_blank">문의처</a><span class="link-desc">제품 문의 | 제휴 문의 | 연수 문의</span></li>
             </ul>
           </div>
         </div>
@@ -123,14 +109,5 @@
   </footer>
 
   <script src="sketch.js"></script>
-  <script>
-    // sketch.js 로드 직후 버튼에 직접 바인딩
-    // window.load 래퍼 제거 — 래퍼가 사용자 제스처 타이밍을 어긋나게 만들어 팝업이 늦게 뜨는 문제 해결
-    document.getElementById("connect-btn").onclick    = function() { connectBluetooth(); };
-    document.getElementById("disconnect-btn").onclick = function() { disconnectBluetooth(); };
-    document.getElementById("start-track-btn").onclick = function() { startTracking(); };
-    document.getElementById("stop-track-btn").onclick  = function() { stopTracking(); };
-    document.getElementById("reset-btn").onclick       = function() { clearAllModel(); };
-  </script>
 </body>
 </html>
