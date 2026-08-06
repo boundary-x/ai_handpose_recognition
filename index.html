@@ -89,7 +89,7 @@
           <h2 class="footer-logo">바운더리엑스</h2>
           <p class="slogan">"우리는 산업과 교육의 경계를 허물고, 미래 기술을 교실의 책상 위로 옮기는 사람들입니다"</p>
           <address>
-            <p>경기도 화성시 동탄첨단산업1로 57, 동탄2인큐베이팅센터 706호</p>
+            <p>경기도 의왕시 안양판교로 82(유니콘로드), 811호</p>
             <p class="copyright">© 2024 Boundary X Co. All rights reserved.</p>
           </address>
         </div>
@@ -124,20 +124,13 @@
 
   <script src="sketch.js"></script>
   <script>
-    // p5.js 및 sketch.js 로드 완료 후 버튼 이벤트 등록
-    // onclick 속성 대신 addEventListener 사용 — p5.js 이벤트 가로채기 문제 우회
-    window.addEventListener("load", function () {
-      document.getElementById("connect-btn")
-        .addEventListener("click", function () { connectBluetooth(); });
-      document.getElementById("disconnect-btn")
-        .addEventListener("click", function () { disconnectBluetooth(); });
-      document.getElementById("start-track-btn")
-        .addEventListener("click", function () { startTracking(); });
-      document.getElementById("stop-track-btn")
-        .addEventListener("click", function () { stopTracking(); });
-      document.getElementById("reset-btn")
-        .addEventListener("click", function () { clearAllModel(); });
-    });
+    // sketch.js 로드 직후 버튼에 직접 바인딩
+    // window.load 래퍼 제거 — 래퍼가 사용자 제스처 타이밍을 어긋나게 만들어 팝업이 늦게 뜨는 문제 해결
+    document.getElementById("connect-btn").onclick    = function() { connectBluetooth(); };
+    document.getElementById("disconnect-btn").onclick = function() { disconnectBluetooth(); };
+    document.getElementById("start-track-btn").onclick = function() { startTracking(); };
+    document.getElementById("stop-track-btn").onclick  = function() { stopTracking(); };
+    document.getElementById("reset-btn").onclick       = function() { clearAllModel(); };
   </script>
 </body>
 </html>
