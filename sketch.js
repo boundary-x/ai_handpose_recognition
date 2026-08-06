@@ -1,6 +1,9 @@
 /**
  * sketch.js
  * Boundary X: AI 핸드포즈학습 [MediaPipe Edition v3]
+ *
+ * 수정: p5.js createButton() → HTML 버튼 + 전역 함수(onclick) 방식으로 변경
+ *       → 버튼 클릭 이벤트 미동작 문제 해결
  */
 
 // Bluetooth UUIDs
