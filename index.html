@@ -47,8 +47,7 @@
           <div class="empty-msg">아직 학습된 데이터가 없습니다.</div>
         </div>
         
-        <button class="stop-button" style="margin-top: 15px; width: 100%;"
-                onclick="clearAllModel()">🗑️ 모델 전체 초기화</button>
+        <button id="reset-btn" class="stop-button" style="margin-top: 15px; width: 100%;">🗑️ 모델 전체 초기화</button>
       </div>
 
       <div class="control-group">
@@ -66,8 +65,8 @@
         <p>블루투스 연결 버튼을 클릭해 마이크로비트를 연결해주세요.</p>
         <div id="bluetoothStatus" class="status-box">상태: 연결 대기 중</div>
         <div class="button-group" style="margin-top: 15px;">
-          <button class="start-button" onclick="connectBluetooth()">기기 연결</button>
-          <button class="stop-button" onclick="disconnectBluetooth()">연결 해제</button>
+          <button id="connect-btn" class="start-button">기기 연결</button>
+          <button id="disconnect-btn" class="stop-button">연결 해제</button>
         </div>
       </div>
 
@@ -75,8 +74,8 @@
         <h3>▎ 2. AI 인식 제어</h3>
         <p>시작 버튼을 눌러 AI 인식 및 데이터 전송을 시작하세요.</p>
         <div class="button-group">
-          <button class="start-button" onclick="startTracking()">인식 시작</button>
-          <button class="stop-button" onclick="stopTracking()">인식 중지</button>
+          <button id="start-track-btn" class="start-button">인식 시작</button>
+          <button id="stop-track-btn" class="stop-button">인식 중지</button>
         </div>
       </div>
 
@@ -124,5 +123,21 @@
   </footer>
 
   <script src="sketch.js"></script>
+  <script>
+    // p5.js 및 sketch.js 로드 완료 후 버튼 이벤트 등록
+    // onclick 속성 대신 addEventListener 사용 — p5.js 이벤트 가로채기 문제 우회
+    window.addEventListener("load", function () {
+      document.getElementById("connect-btn")
+        .addEventListener("click", function () { connectBluetooth(); });
+      document.getElementById("disconnect-btn")
+        .addEventListener("click", function () { disconnectBluetooth(); });
+      document.getElementById("start-track-btn")
+        .addEventListener("click", function () { startTracking(); });
+      document.getElementById("stop-track-btn")
+        .addEventListener("click", function () { stopTracking(); });
+      document.getElementById("reset-btn")
+        .addEventListener("click", function () { clearAllModel(); });
+    });
+  </script>
 </body>
 </html>
