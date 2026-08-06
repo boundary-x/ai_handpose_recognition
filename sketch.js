@@ -1,7 +1,7 @@
 /**
  * sketch.js
- * Boundary X: AI Gesture Learning [MediaPipe + 모바일 최적화 버전]
- * Feature: MediaPipe Hands 적용, 분석 횟수 제한(Throttling) 및 UI 렌더링 최적화
+ * Boundary X: AI Gesture Learning [안정화 & 모바일 최적화 버전]
+ * Feature: MediaPipe Hands 적용, Bluetooth 예외 완벽 처리, 큐(Queue) 전송 방식 적용
  */
 
 // Bluetooth UUIDs
@@ -13,13 +13,14 @@ let bluetoothDevice, rxCharacteristic, isConnected = false;
 let bluetoothStatus = "연결 대기 중";
 let isSendingData = false;
 let lastSendTime = 0;
+let btQueue = []; // ✨ 데이터 유실 방지를 위한 큐 시스템
 
 let video;
 let knnClassifier;
-let currentLandmarks = null; // MediaPipe 결과 저장
+let currentLandmarks = null;
 let isModelReady = false;
 
-// 성능 최적화 변수 (프레임 드랍 방지)
+// 성능 최적화 변수
 let lastClassifyTime = 0;
 let lastLabel = ""; 
 
@@ -28,7 +29,6 @@ let classInput, addDataBtn, resetBtn;
 let resultLabel, resultConf, btDataDisplay;
 let trainingList, statusBadge;
 
-// Data & Settings
 let classes = {}; 
 let isTraining = false;
 let isFlipped = true; 
@@ -42,12 +42,9 @@ function setup() {
   video.size(320, 240);
   video.hide();
 
-  // KNN 모델 준비 (데이터 학습용)
   knnClassifier = ml5.KNNClassifier();
 
   setupUI();
-  
-  // 구글 MediaPipe 설정 및 실행
   setupMediaPipe();
 }
 
@@ -58,13 +55,12 @@ function setupMediaPipe() {
 
   hands.setOptions({
     maxNumHands: 1,
-    modelComplexity: 0, // 0이 가장 가볍고 빠름 (모바일/태블릿용)
+    modelComplexity: 0,
     minDetectionConfidence: 0.5,
     minTrackingConfidence: 0.5
   });
 
   hands.onResults((results) => {
-    // 손이 인식되면 좌표 데이터를 저장
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       currentLandmarks = results.multiHandLandmarks[0];
     } else {
@@ -72,7 +68,6 @@ function setupMediaPipe() {
     }
   });
 
-  // 비디오 프레임을 MediaPipe로 전달
   const camera = new Camera(video.elt, {
     onFrame: async () => {
       await hands.send({image: video.elt});
@@ -82,7 +77,6 @@ function setupMediaPipe() {
   });
   camera.start();
 
-  console.log("MediaPipe Ready");
   isModelReady = true;
   if(statusBadge) statusBadge.html("준비 완료! 제스처를 학습시키세요.");
 }
@@ -97,24 +91,49 @@ function setupUI() {
   resultConf = select('#result-conf');
   btDataDisplay = select('#bluetooth-data-display');
 
-  addDataBtn.mousePressed(() => isTraining = true);
-  addDataBtn.mouseReleased(() => isTraining = false);
-  resetBtn.mousePressed(clearAllModel);
+  // ✨ 개선: 조용히 무시되는 현상 수정 (모델 미준비/손 미인식 시 경고 UI)
+  // pointerdown/up을 사용하여 모바일 터치와 마우스 클릭 모두 완벽 지원
+  addDataBtn.elt.addEventListener('pointerdown', () => {
+    if (!isModelReady) {
+        statusBadge.html("🚨 AI 모델이 아직 준비되지 않았습니다!");
+        statusBadge.style('background-color', '#EA4335');
+        setTimeout(() => {
+            statusBadge.html("준비 완료! 제스처를 학습시키세요.");
+            statusBadge.style('background-color', 'rgba(0,0,0,0.7)');
+        }, 2000);
+        return;
+    }
+    if (!currentLandmarks) {
+        resultLabel.html("손 인식 실패");
+        resultLabel.style('color', '#EA4335');
+        resultConf.html("화면에 손을 명확히 보여주세요");
+        return;
+    }
+    isTraining = true;
+  });
+  
+  addDataBtn.elt.addEventListener('pointerup', () => isTraining = false);
+  addDataBtn.elt.addEventListener('pointerleave', () => isTraining = false);
+  
+  // 초기화 버튼 이벤트
+  resetBtn.elt.addEventListener('click', clearAllModel);
 
+  // --- 기기 연결 (순수 JS 이벤트로 팝업 차단 방지) ---
   let connectBtn = createButton("기기 연결");
   connectBtn.parent('bluetooth-control-buttons');
   connectBtn.addClass('start-button');
-  connectBtn.mousePressed(connectBluetooth);
+  connectBtn.elt.addEventListener('click', connectBluetooth);
 
   let disconnectBtn = createButton("연결 해제");
   disconnectBtn.parent('bluetooth-control-buttons');
   disconnectBtn.addClass('stop-button');
-  disconnectBtn.mousePressed(disconnectBluetooth);
+  disconnectBtn.elt.addEventListener('click', disconnectBluetooth);
 
+  // --- 인식 제어 ---
   let startTrackBtn = createButton("인식 시작");
   startTrackBtn.parent('recognition-control-buttons');
   startTrackBtn.addClass('start-button');
-  startTrackBtn.mousePressed(() => { 
+  startTrackBtn.elt.addEventListener('click', () => { 
       isTracking = true; 
       btDataDisplay.html("데이터 분석 중...");
       btDataDisplay.style('color', '#0f0'); 
@@ -123,9 +142,9 @@ function setupUI() {
   let stopTrackBtn = createButton("인식 중지");
   stopTrackBtn.parent('recognition-control-buttons');
   stopTrackBtn.addClass('stop-button');
-  stopTrackBtn.mousePressed(() => { 
+  stopTrackBtn.elt.addEventListener('click', () => { 
       isTracking = false; 
-      sendBluetoothData("stop");
+      sendBluetoothData("stop", true); // ✨ 개선: 긴급 정지 플래그(true) 전송
       btDataDisplay.html("전송 중지됨");
       btDataDisplay.style('color', '#EA4335'); 
   });
@@ -136,7 +155,6 @@ function setupUI() {
 function draw() {
   background(0);
 
-  // 화면 그리기 (거울 모드)
   push();
   if (isFlipped) {
       translate(width, 0);
@@ -151,7 +169,6 @@ function draw() {
   }
   pop();
 
-  // 손이 화면에 인식되었을 때
   if (currentLandmarks) {
     let features = extractRelativeFeatures(currentLandmarks);
 
@@ -160,7 +177,6 @@ function draw() {
       if (label) addExample(features, label);
     } 
     else if (knnClassifier.getNumLabels() > 0) {
-      // ✨ 성능 최적화: 150ms 마다 한 번씩만 분석 실행 (과부하 방지)
       if (millis() - lastClassifyTime > 150) {
         classify(features);
         lastClassifyTime = millis();
@@ -169,9 +185,6 @@ function draw() {
   }
 }
 
-/**
- * 손목 기준 상대 좌표 변환 (거리 및 크기 무시)
- */
 function extractRelativeFeatures(landmarks) {
   let features = [];
   let wrist = landmarks[0]; 
@@ -187,14 +200,12 @@ function extractRelativeFeatures(landmarks) {
   if (maxDist < 0.0001) maxDist = 0.0001;
 
   for (let i = 1; i < landmarks.length; i++) {
-    // MediaPipe 좌표 구조(.x, .y)에 맞춰 변경됨
     let relativeX = (landmarks[i].x - wrist.x) / maxDist;
     let relativeY = (landmarks[i].y - wrist.y) / maxDist;
     
     features.push(relativeX);
     features.push(relativeY);
   }
-  
   return features; 
 }
 
@@ -203,7 +214,6 @@ function addExample(features, label) {
   if (!classes[label]) classes[label] = 0;
   classes[label]++;
   
-  // UI 업데이트 빈도 조절: 학습 데이터가 10의 배수일 때만 화면 갱신
   if (classes[label] % 10 === 0 || classes[label] === 1) {
       updateListUI();
   }
@@ -217,7 +227,6 @@ function classify(features) {
       const label = result.label;
       const conf = result.confidencesByLabel[label];
       
-      // ✨ UI 업데이트 최적화: 결과가 이전과 다를 때만 글씨 변경
       if (label !== lastLabel || conf < 0.85) {
           resultLabel.html(label);
           resultConf.html(`정확도: ${(conf * 100).toFixed(0)}%`);
@@ -246,7 +255,6 @@ function classify(features) {
 
 function drawKeypoints(landmarks) {
   for (let j = 0; j < landmarks.length; j += 1) {
-    // MediaPipe는 0~1 사이의 비율 값을 주므로 너비/높이를 곱해줌
     let x = landmarks[j].x * width;
     let y = landmarks[j].y * height;
     
@@ -300,35 +308,52 @@ function clearAllModel() {
   lastLabel = "";
 }
 
-/* --- Bluetooth Logic --- */
+/* --- ✨ 완벽하게 개선된 Bluetooth Logic --- */
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: "BBC micro:bit" }],
       optionalServices: [UART_SERVICE_UUID]
     });
+    
+    // ✨ 개선: 기기 연결 단절(물리적 이탈, 전원 꺼짐 등) 이벤트 등록
+    bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
     const server = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
     rxCharacteristic = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
+    
     isConnected = true;
     bluetoothStatus = "연결됨: " + bluetoothDevice.name;
     updateBluetoothStatusUI(true);
   } catch (error) {
-    console.error(error);
-    bluetoothStatus = "연결 실패";
+    console.error("BT Connect Error:", error);
+    bluetoothStatus = "연결 실패: " + error.message;
     updateBluetoothStatusUI(false, true);
   }
 }
 
 function disconnectBluetooth() {
   if (bluetoothDevice && bluetoothDevice.gatt.connected) {
-    bluetoothDevice.gatt.disconnect();
+    bluetoothDevice.gatt.disconnect(); // 이 호출이 onDisconnected를 트리거합니다.
+  } else {
+    onDisconnected(); // 이미 끊긴 경우 강제 처리
   }
+}
+
+// ✨ 개선: 단절 이벤트 처리 함수
+function onDisconnected() {
   isConnected = false;
-  bluetoothStatus = "연결 해제됨";
+  isSendingData = false;
+  btQueue = []; // 대기 중인 전송 비우기
+  bluetoothStatus = "연결 끊김 (기기 이탈)";
   rxCharacteristic = null;
-  bluetoothDevice = null;
-  updateBluetoothStatusUI(false);
+  updateBluetoothStatusUI(false, true);
+  
+  if (btDataDisplay) {
+      btDataDisplay.html("블루투스 연결이 끊어졌습니다.");
+      btDataDisplay.style('color', '#EA4335');
+  }
 }
 
 function updateBluetoothStatusUI(connected = false, error = false) {
@@ -342,16 +367,53 @@ function updateBluetoothStatusUI(connected = false, error = false) {
   }
 }
 
-async function sendBluetoothData(data) {
+// ✨ 개선: Queue를 통한 데이터 유실 방지 및 타임아웃 처리
+async function sendBluetoothData(data, isUrgent = false) {
   if (!rxCharacteristic || !isConnected) return;
-  if (isSendingData) return;
+  
+  if (isUrgent) {
+      btQueue = []; // 'stop' 같은 긴급 명령은 큐를 모두 비우고 최우선으로 등록
+      btQueue.push(data);
+  } else {
+      // 일반 데이터는 너무 많이 쌓이면 딜레이가 발생하므로 오래된 것을 버림 (최대 3개 유지)
+      if (btQueue.length > 3) btQueue.shift(); 
+      btQueue.push(data);
+  }
+  
+  processQueue();
+}
+
+async function processQueue() {
+  if (isSendingData || btQueue.length === 0) return;
+  
+  isSendingData = true;
+  let data = btQueue.shift();
+
   try {
-    isSendingData = true;
     const encoder = new TextEncoder();
-    await rxCharacteristic.writeValue(encoder.encode(data + "\n"));
+    const value = encoder.encode(data + "\n");
+    
+    // ✨ 개선: 무한 대기 방지용 타임아웃 2초(2000ms) 프로미스
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout (응답 없음)")), 2000);
+    });
+
+    // Promise.race를 통해 전송과 타임아웃 중 먼저 끝나는 것을 처리
+    await Promise.race([
+        rxCharacteristic.writeValue(value),
+        timeoutPromise
+    ]);
+    
   } catch (error) {
-    console.error(error);
+    console.error("BT Send Error:", error);
+    // ✨ 개선: 에러 발생 시 콘솔뿐만 아니라 UI에도 즉각 피드백
+    btDataDisplay.html(`전송 에러: ${error.message}`);
+    btDataDisplay.style('color', '#EA4335'); 
   } finally {
     isSendingData = false;
+    // 큐에 남은 데이터가 있다면 연속해서 처리
+    if (btQueue.length > 0) {
+        processQueue();
+    }
   }
 }
