@@ -44,6 +44,8 @@ let video;
 let classes = {};
 let isTraining = false;
 let pendingTrainUpdate = false;
+let lastTrainTime = 0;       // 학습 데이터 수집 간격 제한용
+const TRAIN_INTERVAL = 200;  // ms — 0.2초마다 1개 수집
 let isFlipped = true;
 let isTracking = false;
 
@@ -156,8 +158,9 @@ function draw() {
       return;
     }
     const label = classInput.value().trim();
-    if (label) {
+    if (label && millis() - lastTrainTime > TRAIN_INTERVAL) {
       addExample(features, label);
+      lastTrainTime = millis();
       pendingTrainUpdate = true;
     }
   } else if (isTracking && trainingData.length > 0) {
