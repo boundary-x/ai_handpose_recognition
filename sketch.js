@@ -22,13 +22,13 @@ function withTimeout(promise, ms) {
 // === BLE State ===
 let bluetoothDevice = null;
 let rxCharacteristic = null;
-let canWriteWithoutResponse = false; // micro:bit UART RX가 지원하면 ACK 대기 없이 즉시 전송
 let isConnected = false;
 let bluetoothStatus = "연결 대기 중";
 let isSendingData = false;
 let isManualDisconnect = false;
 let lastSendErrorTime = 0;
-let pendingLabel = null; // 전송 중 새 값이 들어오면 드롭하지 않고 최신 값으로 갱신해둠
+let lastSendTime = 0;
+const SEND_INTERVAL = 100;
 
 // === MediaPipe State ===
 let handLandmarker = null;
@@ -273,10 +273,9 @@ function classifyKNN(features) {
   btDataDisplay.html(displayMsg);
   btDataDisplay.style("color", "#00E676");
 
-  // 인위적인 전송 간격 제한 없이 매 프레임 최신 라벨을 큐잉 → sendBluetoothData가 내부적으로
-  // 이전 전송이 끝나는 즉시 최신 값을 이어서 보내므로 별도의 setTimeout/interval이 필요 없다.
-  if (isConnected) {
+  if (isConnected && millis() - lastSendTime > SEND_INTERVAL) {
     sendBluetoothData(label);
+    lastSendTime = millis();
   }
 }
 
@@ -376,8 +375,6 @@ async function connectBluetooth() {
     const server  = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
     rxCharacteristic = await service.getCharacteristic(UART_RX_UUID);
-    // write-without-response를 지원하면 ACK(응답) 왕복 없이 바로바로 던질 수 있어 훨씬 빠르다
-    canWriteWithoutResponse = !!(rxCharacteristic.properties && rxCharacteristic.properties.writeWithoutResponse);
     bluetoothDevice.addEventListener("gattserverdisconnected", onDisconnected);
     isConnected = true;
     bluetoothStatus = "연결됨: " + bluetoothDevice.name;
@@ -398,8 +395,6 @@ function disconnectBluetooth() {
     bluetoothStatus = "연결 해제됨";
     rxCharacteristic = null;
     bluetoothDevice = null;
-    canWriteWithoutResponse = false;
-    pendingLabel = null;
     updateBluetoothStatusUI(false);
   }
 }
@@ -408,8 +403,6 @@ function onDisconnected() {
   isConnected = false;
   rxCharacteristic = null;
   bluetoothDevice = null;
-  canWriteWithoutResponse = false;
-  pendingLabel = null;
 
   const wasTracking = isTracking;
   if (isTracking) stopTracking(false);
@@ -442,28 +435,14 @@ function updateBluetoothStatusUI(connected = false, error = false) {
   else if (error) el.addClass("status-error");
 }
 
-// 항상 "가장 최신 값"만 큐에 남겨둔다. 이전 전송이 진행 중이면 값을 버리지 않고
-// pendingLabel을 갱신해두었다가, 현재 전송이 끝나는 즉시 이어서 보낸다.
 async function sendBluetoothData(data) {
   if (!rxCharacteristic || !isConnected) return false;
-  pendingLabel = data;
-  if (isSendingData) return false; // 이미 전송 중 → flush 완료 후 finally에서 자동으로 이어서 전송됨
-  return flushPendingData();
-}
-
-async function flushPendingData() {
-  if (!rxCharacteristic || !isConnected || pendingLabel === null) return false;
-  const toSend = pendingLabel;
-  pendingLabel = null;
-  isSendingData = true;
+  if (isSendingData) return false;
   try {
-    const payload = new TextEncoder().encode(toSend + "\n");
-    if (canWriteWithoutResponse) {
-      // ACK를 기다리지 않는 방식 → 왕복 지연이 없어 체감 속도가 크게 빨라짐
-      await withTimeout(rxCharacteristic.writeValueWithoutResponse(payload), 1000);
-    } else {
-      await withTimeout(rxCharacteristic.writeValue(payload), 1000);
-    }
+    isSendingData = true;
+    await withTimeout(
+      rxCharacteristic.writeValue(new TextEncoder().encode(data + "\n")), 2000
+    );
     return true;
   } catch (error) {
     console.error(error);
@@ -476,10 +455,6 @@ async function flushPendingData() {
     return false;
   } finally {
     isSendingData = false;
-    if (pendingLabel !== null) {
-      // 전송 중에 새로 들어온 최신 값이 있으면 지연 없이 바로 이어서 전송
-      flushPendingData();
-    }
   }
 }
 
