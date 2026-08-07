@@ -1,10 +1,6 @@
 /**
  * sketch.js
  * Boundary X: AI 핸드포즈학습 [MediaPipe + p5.js v6]
- *
- * 핵심 수정: 버튼을 p5.js createButton().mousePressed()로 생성
- *  → Chrome에서 블루투스 팝업이 즉시 뜨는 문제 해결
- *  → p5.js 이벤트 컨텍스트 안에서 호출되므로 "사용자 제스처"로 인정됨
  */
 
 // Bluetooth UUIDs
@@ -48,6 +44,7 @@ let lastTrainTime = 0;
 const TRAIN_INTERVAL = 200;
 let isFlipped = true;
 let isTracking = false;
+let lastSentLabel = ""; // 마지막으로 전송한 라벨 (변경 감지용)
 
 // === UI Elements ===
 let classInput;
@@ -116,6 +113,7 @@ function setup() {
   startTrackBtn.addClass("start-button");
   startTrackBtn.mousePressed(() => {
     isTracking = true;
+    lastSentLabel = ""; // 새 세션 시작 — 이전에 보낸 값과 비교되지 않도록 초기화
     btDataDisplay.html("데이터 분석 중...");
     btDataDisplay.style("color", "#0f0");
   });
@@ -273,9 +271,15 @@ function classifyKNN(features) {
   btDataDisplay.html(displayMsg);
   btDataDisplay.style("color", "#00E676");
 
-  if (isConnected && millis() - lastSendTime > SEND_INTERVAL) {
-    sendBluetoothData(label);
-    lastSendTime = millis();
+  // 하이브리드 전송: 값이 바뀌면 즉시, 유지되면 SEND_INTERVAL마다 재전송
+  if (isConnected) {
+    const now = millis();
+    const changed = label !== lastSentLabel;
+    if (changed || now - lastSendTime > SEND_INTERVAL) {
+      sendBluetoothData(label);
+      lastSentLabel = label;
+      lastSendTime = now;
+    }
   }
 }
 
