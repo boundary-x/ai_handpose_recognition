@@ -51,6 +51,7 @@ let classInput;
 let resultLabel, resultConf, btDataDisplay;
 let trainingList, statusBadge;
 let addDataBtn;
+let connectBtn;
 
 // =============================================
 // p5.js Setup
@@ -97,9 +98,10 @@ function setup() {
   resetBtn.mousePressed(clearAllModel);
 
   // 블루투스 버튼
-  let connectBtn = createButton("기기 연결");
+  connectBtn = createButton("AI 로딩 중...");
   connectBtn.parent("bluetooth-control-buttons");
   connectBtn.addClass("start-button");
+  connectBtn.attribute("disabled", true);
   connectBtn.mousePressed(connectBluetooth);
 
   let disconnectBtn = createButton("연결 해제");
@@ -180,6 +182,14 @@ async function initMediaPipe() {
     isModelReady = true;
     if (statusBadge) statusBadge.html("✅ 준비 완료! 제스처를 학습시키세요.");
     console.log("MediaPipe HandLandmarker Ready");
+
+    // 무거운 WASM/GPU delegate 초기화가 끝난 뒤에만 연결 버튼 활성화
+    // → 초기화 도중 클릭 시 블루투스 팝업이 지연되는 문제 방지
+    if (connectBtn) {
+      connectBtn.removeAttribute("disabled");
+      connectBtn.html("기기 연결");
+    }
+
     inferenceLoop();
   } catch (e) {
     console.error("MediaPipe 초기화 실패:", e);
