@@ -96,3 +96,11 @@ address { color: #888; font-style: normal; line-height: 1.6; }
   main { padding: 1.5rem; }
   .footer-top, .footer-links { flex-direction: column; gap: 2rem; }
 }
+
+/* 모델 로딩 중 연결 버튼 비활성화 스타일 */
+.start-button:disabled {
+  background: #888;
+  color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
