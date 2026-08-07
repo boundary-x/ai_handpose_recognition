@@ -21,7 +21,8 @@ header { background: #000; border-bottom: 1px solid #333; padding: 1rem 5vw; dis
 main { width: 100%; max-width: 1200px; margin: 0 auto; padding: 3rem 1.5rem; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
 
 .canvas-container { 
-    width: 320px; height: 240px; border-radius: var(--radius-card); 
+    width: 100%; max-width: 320px; aspect-ratio: 4 / 3;
+    border-radius: var(--radius-card); 
     overflow: hidden; background: #000; box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
     position: relative; flex-shrink: 0; 
 }
@@ -95,6 +96,31 @@ address { color: #888; font-style: normal; line-height: 1.6; }
 @media (max-width: 767px) {
   main { padding: 1.5rem; }
   .footer-top, .footer-links { flex-direction: column; gap: 2rem; }
+}
+
+/* 세로로 긴 화면(스마트폰 세로 모드)에서 인식창이 위에 붙어 스크롤을 따라오도록 플로팅 처리 */
+@media (max-width: 767px) and (orientation: portrait) {
+  main {
+    padding: 1rem;
+    gap: 1.5rem;
+    overflow: visible;
+  }
+
+  .canvas-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto 10px auto !important;
+
+    position: sticky !important;
+    top: 70px !important;
+    z-index: 90;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .controls { width: 100%; padding-bottom: 2rem; }
+  .button-group { flex-direction: column !important; }
+  button { width: 100% !important; flex: none !important; }
 }
 
 /* 모델 로딩 중 연결 버튼 비활성화 스타일 */
