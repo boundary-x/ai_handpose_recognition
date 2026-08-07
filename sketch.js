@@ -1,6 +1,7 @@
 /**
  * sketch.js
  * Boundary X: AI 핸드포즈학습 [MediaPipe + p5.js v6]
+ *
  */
 
 // Bluetooth UUIDs
@@ -56,6 +57,12 @@ let connectBtn;
 // =============================================
 // p5.js Setup
 // =============================================
+
+// 문자열에 한글(자모/완성형)이 포함되어 있는지 검사
+function containsKorean(text) {
+  return /[\uAC00-\uD7A3\u3131-\u318E]/.test(text);
+}
+
 function setup() {
   let canvas = createCanvas(320, 240);
   canvas.parent("p5-container");
@@ -83,10 +90,25 @@ function setup() {
   addDataBtn = createButton("학습 (Hold)");
   addDataBtn.parent("add-data-btn-container");
   addDataBtn.addClass("start-button");
-  addDataBtn.mousePressed(() => { isTraining = true; });
+  addDataBtn.mousePressed(() => {
+    const label = classInput.value().trim();
+    if (containsKorean(label)) {
+      alert("⚠️ 클래스 이름은 영어로 입력해주세요. 한글로는 학습할 수 없습니다.");
+      return; // isTraining을 true로 만들지 않음 → 학습 시작 안 됨
+    }
+    isTraining = true;
+  });
   addDataBtn.mouseReleased(() => { isTraining = false; });
   addDataBtn.elt.addEventListener("mouseleave", () => { isTraining = false; });
-  addDataBtn.elt.addEventListener("touchstart", (e) => { e.preventDefault(); isTraining = true; });
+  addDataBtn.elt.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const label = classInput.value().trim();
+    if (containsKorean(label)) {
+      alert("⚠️ 클래스 이름은 영어로 입력해주세요. 한글로는 학습할 수 없습니다.");
+      return;
+    }
+    isTraining = true;
+  });
   addDataBtn.elt.addEventListener("touchend",   (e) => { e.preventDefault(); isTraining = false; });
 
   // 초기화 버튼
@@ -246,6 +268,11 @@ function euclideanDistSq(a, b) {
 }
 
 function addExample(features, label) {
+  // 방어적 안전망: 어떤 경로로든 한글 라벨이 들어오면 학습하지 않음
+  if (containsKorean(label)) {
+    console.warn("한글 라벨은 학습하지 않습니다:", label);
+    return;
+  }
   trainingData.push({ label, features });
   if (!classes[label]) classes[label] = 0;
   classes[label]++;
