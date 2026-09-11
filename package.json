@@ -1,0 +1,10 @@
+{
+  "name": "boundary-x-handpose-knn",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/core.cjs && node tests/browser.cjs",
+    "test:core": "node --test tests/core.cjs",
+    "test:browser": "node tests/browser.cjs"
+  },
+  "devDependencies": { "playwright": "1.62.1" }
+}

@@ -6,7 +6,6 @@
   <title>바운더리엑스 AI 핸드포즈</title>
   <link rel="icon" href="https://raw.githubusercontent.com/boundary-x/ai_teachable_machine/refs/heads/main/Favicon.png"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.dom.min.js"></script>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link rel="stylesheet" type="text/css" href="style.css">
 </head>
@@ -16,7 +15,7 @@
       <a href="https://boundaryx.io">
         <img src="https://raw.githubusercontent.com/boundary-x/ai_voice_recognition/refs/heads/main/boundaryx_logo.png" alt="Logo">
       </a>
-      AI 핸드포즈학습
+      <span class="title-text">AI 핸드포즈학습</span>
     </div>
     <a href="https://boundaryx.io/59" class="back-button">돌아가기</a>
   </header>
@@ -29,13 +28,12 @@
     <section class="controls">
 
       <div class="control-group">
-        <h3>👋 제스처 데이터 학습</h3>
-        <p>동작 이름을 입력하고 <strong>'학습'</strong> 버튼을 꾹 누르세요.</p>
+        <h3>👋 학습 ID 추가</h3>
+        <p>손을 카메라에 비추고 ID별 학습 버튼을 누르세요. 짧게 누르면 1개, 길게 누르면 연속으로 수집합니다.</p>
         <div class="input-group">
-          <input type="text" id="class-input" placeholder="예: ID1, ID2">
-          <!-- 학습 버튼: p5.js가 생성해서 삽입 -->
-          <div id="add-data-btn-container"></div>
+          <button id="add-class-btn" class="start-button" type="button">+ 학습 ID 추가</button>
         </div>
+        <p id="training-status" class="status-message" role="status" aria-live="polite">ID를 추가한 뒤 손이 감지되면 학습할 수 있습니다.</p>
 
         <div class="divider"></div>
 
@@ -43,8 +41,20 @@
           <div class="empty-msg">아직 학습된 데이터가 없습니다.</div>
         </div>
 
-        <!-- 초기화 버튼: p5.js가 생성해서 삽입 -->
+        <!-- Reset control is created by sketch.js. -->
         <div id="reset-btn-container"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>💾 모델 저장 · 가져오기</h3>
+        <p>학습 데이터를 JSON 파일로 보관하거나 공유하세요. 가져오면 현재 ID와 학습 데이터를 교체합니다.</p>
+        <div class="model-file-buttons">
+          <button id="download-model-btn" class="start-button" type="button" disabled>모델 다운로드</button>
+          <button id="share-model-btn" class="start-button" type="button" disabled>파일 공유</button>
+          <button id="import-model-btn" class="stop-button" type="button">모델 가져오기</button>
+        </div>
+        <input id="model-file-input" type="file" accept=".json,application/json" hidden>
+        <p id="file-status" class="status-message" role="status" aria-live="polite">원본 영상은 포함되지 않습니다. 파일 공유는 지원하는 기기에서 사용할 수 있습니다.</p>
       </div>
 
       <div class="control-group">
@@ -61,14 +71,14 @@
         <h3>▎ 1. 기기 연결</h3>
         <p>블루투스 연결 버튼을 클릭해 마이크로비트를 연결해주세요.</p>
         <div id="bluetoothStatus" class="status-box">상태: 연결 대기 중</div>
-        <!-- 블루투스 버튼: p5.js가 생성해서 삽입 -->
+        <!-- Bluetooth controls are created by sketch.js. -->
         <div id="bluetooth-control-buttons" class="button-group" style="margin-top: 15px;"></div>
       </div>
 
       <div class="control-group">
         <h3>▎ 2. AI 인식 제어</h3>
         <p>시작 버튼을 눌러 AI 인식 및 데이터 전송을 시작하세요.</p>
-        <!-- 인식 제어 버튼: p5.js가 생성해서 삽입 -->
+        <!-- Recognition controls are created by sketch.js. -->
         <div id="recognition-control-buttons" class="button-group"></div>
       </div>
 
@@ -105,6 +115,8 @@
     </div>
   </footer>
 
+  <script src="hand-model.js"></script>
+  <script src="training-input.js"></script>
   <script src="sketch.js"></script>
 </body>
 </html>
