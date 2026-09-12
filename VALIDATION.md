@@ -76,3 +76,8 @@ Screenshots at 390, 844, and 1280 pixels were visually inspected.
 - No physical micro:bit was connected. UART order, errors, retries, and timeout behavior used simulated characteristics.
 - Long-duration performance on every mobile device was not tested.
 - Left/right hand equivalence and rotation invariance are not provided by the current feature definition.
+
+## Shared design verification
+
+The image KNN app's control styles are reused for buttons, training rows, cards, header, and responsive spacing. The hand camera retains its 4:3 aspect ratio. After the visual update, all 8 core tests and 20 browser checks passed again; mobile and desktop screenshots were inspected.
+

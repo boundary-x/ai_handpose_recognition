@@ -15,40 +15,42 @@
       <a href="https://boundaryx.io">
         <img src="https://raw.githubusercontent.com/boundary-x/ai_voice_recognition/refs/heads/main/boundaryx_logo.png" alt="Logo">
       </a>
-      <span class="title-text">AI 핸드포즈학습</span>
+      <span class="title-text">AI 핸드포즈 <span class="knn-badge">KNN</span></span>
     </div>
     <a href="https://boundaryx.io/59" class="back-button">돌아가기</a>
   </header>
 
   <main>
     <div id="p5-container" class="canvas-container">
-      <div id="status-badge" class="status-badge">모델 로딩 중...</div>
+      <div id="status-badge" class="status-badge camera-badge">모델 로딩 중...</div>
     </div>
 
     <section class="controls">
 
       <div class="control-group">
-        <h3>👋 학습 ID 추가</h3>
+        <h3>학습 ID 추가</h3>
         <p>손을 카메라에 비추고 ID별 학습 버튼을 누르세요. 짧게 누르면 1개, 길게 누르면 연속으로 수집합니다.</p>
         <div class="input-group">
-          <button id="add-class-btn" class="start-button" type="button">+ 학습 ID 추가</button>
+          <button id="add-class-btn" class="add-button" type="button">+ 학습 ID 추가</button>
         </div>
-        <p id="training-status" class="status-message" role="status" aria-live="polite">ID를 추가한 뒤 손이 감지되면 학습할 수 있습니다.</p>
 
-        <div class="divider"></div>
 
-        <div id="training-list" class="class-list">
+
+
+        <div id="training-list" class="class-list class-list-container">
           <div class="empty-msg">아직 학습된 데이터가 없습니다.</div>
         </div>
+
+        <p id="training-status" class="status-message" role="status" aria-live="polite">ID를 추가한 뒤 손이 감지되면 학습할 수 있습니다.</p>
 
         <!-- Reset control is created by sketch.js. -->
         <div id="reset-btn-container"></div>
       </div>
 
       <div class="control-group">
-        <h3>💾 모델 저장 · 가져오기</h3>
+        <h3>모델 저장 · 가져오기</h3>
         <p>학습 데이터를 JSON 파일로 보관하거나 공유하세요. 가져오면 현재 ID와 학습 데이터를 교체합니다.</p>
-        <div class="model-file-buttons">
+        <div class="button-group model-file-buttons">
           <button id="download-model-btn" class="start-button" type="button" disabled>모델 다운로드</button>
           <button id="share-model-btn" class="start-button" type="button" disabled>파일 공유</button>
           <button id="import-model-btn" class="stop-button" type="button">모델 가져오기</button>
@@ -58,25 +60,25 @@
       </div>
 
       <div class="control-group">
-        <h3>📊 실시간 인식 결과</h3>
-        <p>AI가 현재 손동작을 분석한 결과입니다.</p>
-        <div class="result-box">
-          <div id="result-label" class="result-text">대기 중</div>
-          <div id="result-conf" class="result-sub">데이터 부족</div>
+        <h3>🧠 AI 판단 결과</h3>
+        <div class="data-info-box">
+          <p class="info-title"><strong>인식 결과</strong></p>
+          <div id="result-label" class="ai-result">대기 중</div>
+          <div id="result-conf" class="ai-confidence">데이터 부족</div>
         </div>
         <div id="bluetooth-data-display" class="data-display">전송 데이터: 대기 중...</div>
       </div>
 
       <div class="control-group">
-        <h3>▎ 1. 기기 연결</h3>
+        <h3>1. 기기 연결</h3>
         <p>블루투스 연결 버튼을 클릭해 마이크로비트를 연결해주세요.</p>
-        <div id="bluetoothStatus" class="status-box">상태: 연결 대기 중</div>
+        <div id="bluetoothStatus" class="status-box" style="margin-top: 10px;">상태: 연결 대기 중</div>
         <!-- Bluetooth controls are created by sketch.js. -->
-        <div id="bluetooth-control-buttons" class="button-group" style="margin-top: 15px;"></div>
+        <div id="bluetooth-control-buttons" class="button-group" style="margin-top: 1.5rem;"></div>
       </div>
 
       <div class="control-group">
-        <h3>▎ 2. AI 인식 제어</h3>
+        <h3>2. AI 인식 제어</h3>
         <p>시작 버튼을 눌러 AI 인식 및 데이터 전송을 시작하세요.</p>
         <!-- Recognition controls are created by sketch.js. -->
         <div id="recognition-control-buttons" class="button-group"></div>

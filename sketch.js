@@ -48,7 +48,7 @@ function createUI() {
     node.type = "button"; node.id = id; node.className = style; node.textContent = label;
     node.addEventListener("click", handler); byId(parent).appendChild(node);
   };
-  button("reset-model-btn", "🗑️ 모델 전체 초기화", "reset-btn-container", clearAllModel, "stop-button");
+  button("reset-model-btn", "🗑️ 데이터 초기화", "reset-btn-container", clearAllModel, "reset-button");
   button("connect-btn", "AI 로딩 중...", "bluetooth-control-buttons", connectBluetooth);
   button("disconnect-btn", "연결 해제", "bluetooth-control-buttons", disconnectBluetooth, "stop-button");
   button("start-track-btn", "인식 시작", "recognition-control-buttons", startTracking);
@@ -178,17 +178,17 @@ function renderClasses() {
   }
   const counts = HandModel.counts(trainingData);
   for (const id of classIds) {
-    const row = document.createElement("div"); row.className = "list-item"; row.dataset.id = id;
+    const row = document.createElement("div"); row.className = "list-item train-btn-row"; row.dataset.id = id;
     const button = document.createElement("button");
     button.type = "button"; button.className = "train-btn"; button.dataset.id = id;
     button.setAttribute("aria-label", id + " 학습: 짧게 누르면 1개, 길게 누르면 연속 수집");
-    for (const [name, text] of [["id-badge", id], ["train-text", "학습하기"], ["badge-count", (counts[id] || 0) + "개"]]) {
+    for (const [name, text] of [["id-badge", id], ["train-text", "학습하기"], ["badge-count train-count", (counts[id] || 0) + "개"]]) {
       const span = document.createElement("span"); span.className = name; span.textContent = text;
       button.appendChild(span);
     }
     training.bind(button, id);
     const remove = document.createElement("button");
-    remove.type = "button"; remove.className = "delete-btn"; remove.textContent = "×";
+    remove.type = "button"; remove.className = "delete-btn delete-class-btn"; remove.textContent = "×";
     remove.setAttribute("aria-label", id + " 삭제");
     remove.addEventListener("click", () => deleteClass(id));
     row.append(button, remove); list.appendChild(row);
@@ -319,7 +319,6 @@ function stopTracking(sendStopSignal = true) {
 function showPrediction(result) {
   if (!result || !isTracking) return;
   setText("result-label", result.label);
-  byId("result-label").style.color = result.confidence >= 0.85 ? "#00E676" : "#FFEB3B";
   setText("result-conf", "신뢰도: " + (result.confidence * 100).toFixed(0) + "%" +
     (result.neighbors < 5 ? " · 샘플 부족 (" + result.neighbors + "/5)" : ""));
   if (!isConnected) { setText("bluetooth-data-display", "전송 대기: 기기 연결 필요"); return; }
