@@ -81,3 +81,9 @@ Screenshots at 390, 844, and 1280 pixels were visually inspected.
 
 The image KNN app's control styles are reused for buttons, training rows, cards, header, and responsive spacing. The hand camera retains its 4:3 aspect ratio. After the visual update, all 8 core tests and 20 browser checks passed again; mobile and desktop screenshots were inspected.
 
+
+## In-app support verification
+
+The unified walkthrough has 13 steps and three chapter controls: learning, optional device connection, and file storage. All steps, chapter jumps, device skip, and panel/spotlight geometry passed at widths 320, 360, 390, 430, 768, 844, and 1280. Escape dismissal, focus restoration, empty training lists, unchanged training data, and resizing during a tour were checked. The 20 existing browser regression checks also passed after support was added.
+
+The example-code disclosure links to separate device-name and project programs. The project link is 57559-53483-63617-50743, with instructions to enter ID1 in the condition. Physical-device behavior of these external examples has not been revalidated.

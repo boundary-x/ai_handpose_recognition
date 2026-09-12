@@ -84,7 +84,7 @@ For an existing Microsoft Edge installation on Windows, set `$env:BROWSER_CHANNE
 
 Tests require internet access for browser libraries and model assets. Reports and screenshots are saved in `test-results/`, or the directory selected by `TEST_ARTIFACTS`. See [Validation Notes](VALIDATION.md) for coverage and limitations.
 
-The app is a static website with **no build step**. Host `index.html`, `style.css`, `sketch.js`, `hand-model.js`, and `training-input.js` together over HTTPS.
+The app is a static website with **no build step**. Host `index.html`, `style.css`, `sketch.js`, `hand-model.js`, `training-input.js`, `support.js`, and `support.css` together over HTTPS.
 
 **Feature Compatibility:** The detector handles one hand. Features use x/y only; z coordinates and handedness labels are not used. Mirroring affects the display only. Left/right hands and rotated poses are not automatically canonicalized. KNN uses squared Euclidean distance with `k = 5`; tied votes are resolved by total distance and then numeric ID.
 
@@ -107,3 +107,9 @@ The app is a static website with **no build step**. Host `index.html`, `style.cs
 - Web: [boundaryx.io](https://boundaryx.io)
 - Contact: [boundaryx.io/contact](https://boundaryx.io/contact)
 
+
+## In-app Help
+
+Open Help in the header to access the collapsible support card. The unified, read-only walkthrough covers learning, optional micro:bit connection, and model storage, with chapter navigation and a device-skip option. Close the walkthrough to operate the app.
+
+The example-code section contains separate device-name and project links. Read the five lowercase letters shown on the micro:bit LED matrix, then complete the project example by entering `ID1` in its condition before downloading it. Troubleshooting and update notes are available in the same card.

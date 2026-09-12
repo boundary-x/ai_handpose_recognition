@@ -1,0 +1,75 @@
+/* Support UI shares the app's monochrome controls without global button overrides. */
+.header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.header-actions .help-button { border:0; background:transparent; color:#fff; padding:6px 2px; font-size:12px; width:auto !important; min-width:0; min-height:36px; flex:none !important; white-space:nowrap; }
+.support-inline { margin-top:14px; display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; }
+.support-inline a, .support-inline button { font-size:13px; color:#555; text-underline-offset:4px; }
+.support-inline button { background:transparent; border:0; text-decoration:underline; padding:0; width:auto !important; min-width:0; min-height:36px; flex:none !important; }
+#support-card { padding:0; overflow:hidden; }
+#support-card > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:24px 28px; cursor:pointer; list-style:none; }
+#support-card > summary strong { display:block; font-size:1.15rem; color:#111; }
+#support-card > summary small { display:block; font-size:13px; color:#777; margin-top:3px; }
+summary::-webkit-details-marker { display:none; }
+.support-chevron { font-size:22px; transition:transform .15s; }
+#support-card[open] > summary .support-chevron { transform:rotate(180deg); }
+#support-card[open] > summary { border-bottom:1px solid #e5e7eb; }
+.support-content { padding:24px 28px; }
+#support-card p { font-size:14px; line-height:1.7; margin:0 0 16px; }
+.support-actions { display:grid; gap:10px; }
+.support-actions > button, .support-actions > a { width:100% !important; min-width:0; padding:12px 16px; min-height:46px; border-radius:10px; font-size:14px; font-weight:600; display:flex; justify-content:space-between; align-items:center; text-decoration:none; border:1px solid #d1d5db; }
+.support-actions .support-primary { background:#111; color:white; border-color:#111; }
+.support-actions .support-link { background:white; color:#111; }
+#support-card .support-caption { font-size:12px; color:#777; }
+.support-section { border-top:1px solid #ddd; }
+.support-section > summary, .support-faq details > summary { cursor:pointer; padding:16px 0; font-weight:600; font-size:14px; list-style:none; display:flex; gap:12px; align-items:center; }
+.support-section > summary::before, .support-faq details > summary::before { content:'+'; color:#777; flex-shrink:0; font-weight:400; }
+.support-section[open] > summary::before, .support-faq details[open] > summary::before { content:'−'; }
+.support-meta { font-size:11px; color:#888; font-weight:400; margin-left:auto; white-space:nowrap; }
+.support-answer { padding:0 0 18px 22px; color:#555; font-size:14px; }
+.support-answer ol, .support-answer ul { padding-left:18px; margin-bottom:12px; }
+.support-answer li { margin-bottom:8px; }
+.support-answer a { color:#222; text-underline-offset:4px; }
+#support-card .support-release { color:#111; font-weight:600; margin-bottom:8px; }
+.support-faq { padding-left:0; }
+.support-faq details { background:#fff; border:1px solid #e4e4e4; border-radius:8px; margin-bottom:8px; padding:0 12px; }
+.support-faq details > summary { font-size:13px; line-height:1.5; }
+#support-card .support-faq p { font-size:13px; margin-bottom:12px; }
+.support-original { display:inline-block; font-size:12px; color:#666; margin-top:14px; text-underline-offset:4px; }
+summary:focus-visible { outline:3px solid #3778d4; outline-offset:-3px; }
+#support-card, .support-faq details { scroll-margin-top:90px; }
+body.guide-active .canvas-container { position:relative !important; top:auto !important; z-index:auto !important; }
+body.guide-active::after { content:''; height:60vh; flex-shrink:0; }
+#guide-dialog { position:fixed; inset:0; width:100%; height:100%; max-width:none; max-height:none; margin:0; padding:0; border:0; background:transparent; overflow:hidden; color:#111; }
+#guide-dialog::backdrop { background:transparent; }
+#guide-spotlight { position:fixed; border:2px solid #fff; border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,.64); pointer-events:none; }
+#guide-dialog:has(#guide-spotlight[hidden]) { background:rgba(0,0,0,.64); }
+#guide-panel { position:fixed; background:white; border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 12px 48px #0003; padding:20px; max-height:calc(100dvh - 24px); overflow:auto; }
+.guide-topline { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+#guide-progress { font-size:12px; color:#777; }
+#guide-panel button { flex:none !important; width:auto !important; min-width:0; min-height:40px; padding:8px 16px; font-size:13px; border-radius:50px; cursor:pointer; }
+#guide-panel #guide-close { color:#555; background:none; border:0; padding:4px 0 4px 12px; min-height:32px; }
+#guide-title { font-size:20px; line-height:1.35; margin:0 0 10px; }
+#guide-description { font-size:14px; line-height:1.65; color:#444; margin-bottom:12px; }
+.guide-caption { color:#888; font-size:11px; margin-bottom:16px; }
+.guide-navigation { display:flex; justify-content:space-between; gap:10px; }
+#guide-prev { background:white; color:#555; border:1px solid #ddd; }
+#guide-next { background:#111; color:white; border:1px solid #111; }
+@media(max-width:767px) {
+  .header-actions { gap:6px; }
+  .header-actions .help-button { font-size:11px; }
+  #support-card > summary, .support-content { padding:20px 16px; }
+  .support-meta { display:none; }
+}
+@media(max-width:359px) { .header-actions .back-button { font-size:11px; padding-inline:7px; } }
+@media(max-height:500px) { #guide-panel { padding:14px; } #guide-title { font-size:18px; } #guide-description { font-size:13px; } .guide-caption { margin-bottom:10px; } }
+@media(prefers-reduced-motion:reduce) { .support-chevron { transition:none; } }
+
+.support-actions { margin-bottom:20px; }
+.example-code { padding:4px 0 12px; }
+.example-code a { display:inline-block; font-weight:600; font-size:14px; padding:8px 0; }
+#support-card .example-code p { font-size:13px; margin:0; }
+.guide-chapters { display:flex; gap:5px; margin-bottom:14px; flex-wrap:wrap; }
+#guide-panel .guide-chapters button { font-size:11px; padding:6px 8px; min-height:32px; border:1px solid #ddd; background:#fff; color:#666; }
+#guide-panel .guide-chapters button[aria-pressed="true"] { background:#111; color:#fff; border-color:#111; }
+#guide-panel #guide-skip-device { color:#555; border:0; border-radius:0; background:none; padding:0 0 10px; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
+#guide-skip-device[hidden] { display:none; }
+@media(max-height:500px) { .guide-chapters { margin-bottom:8px; } .guide-topline { margin-bottom:4px; } #guide-description { margin-bottom:8px; } }
