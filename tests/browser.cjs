@@ -99,7 +99,7 @@ const checks=[];function pass(label){checks.push(label);console.log("PASS",label
  await page.evaluate(()=>{window.fixture=null;});
  await page.waitForTimeout(700);await page.evaluate(()=>sendQueue);
  assert.equal(await page.locator("#result-label").textContent(),"손 감지 안 됨");
- assert.match(await page.locator("#result-conf").textContent(), /stop 전송 완료/);
+ assert.equal(await page.locator("#result-conf").textContent(), "손을 비추면 인식을 다시 시작합니다.");
  const stops=await page.evaluate(()=>window.writes.filter(x=>x==="stop\n").length);
  assert.equal(stops,1);
  await page.waitForTimeout(400);

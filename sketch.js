@@ -8,7 +8,6 @@ let isModelReady = false, modelLoadFailed = false;
 let lastLandmarks = null, lastFeatures = null, lastVideoTime = -1;
 let frameId = 0, lastSampleFrame = -1, lastHandSeenAt = -Infinity;
 let handAvailable = false, handLossSent = false;
-let handLossStatus = "";
 let trainingData = [], classIds = [], nextClassId = 1;
 let isTracking = false, isBusy = false, isFlipped = true;
 let trackingEpoch = 0, training;
@@ -122,7 +121,7 @@ function handleHandResult(landmarks) {
   if (!features) { invalidateHand(); return; }
   frameId++;
   lastLandmarks = landmarks; lastFeatures = features;
-  lastHandSeenAt = performance.now(); handLossSent = false; handLossStatus = "";
+  lastHandSeenAt = performance.now(); handLossSent = false;
   if (!handAvailable) {
     handAvailable = true;
     setText("status-badge", "손 감지됨");
@@ -145,16 +144,10 @@ function checkHandFreshness() {
   if (handAvailable && performance.now() - lastHandSeenAt > HAND_FRESH_MS) invalidateHand();
   if (isTracking && !handAvailable) {
     setText("result-label", "손 감지 안 됨");
-    setText("result-conf", (handLossStatus || "0.5초 동안 손이 없으면 stop을 전송합니다.") + " 손을 비추면 인식을 다시 시작합니다.");
+    setText("result-conf", "손을 비추면 인식을 다시 시작합니다.");
     if (!handLossSent && performance.now() - lastHandSeenAt > HAND_FRESH_MS) {
       handLossSent = true;
-      const epoch = trackingEpoch, lossFrame = frameId;
-      handLossStatus = isConnected ? "stop 전송 중…" : "stop 전송 대기 · 기기 연결 필요";
-      sendStop(epoch).then(sent => {
-        if (epoch !== trackingEpoch || lossFrame !== frameId || !isTracking || handAvailable) return;
-        handLossStatus = sent ? "stop 전송 완료" :
-          (isConnected ? "stop 전송 실패 · 연결을 확인해주세요." : "stop 전송 안 됨 · 기기 연결 필요");
-      });
+      sendStop(trackingEpoch);
     }
   }
 }
@@ -310,7 +303,7 @@ async function importModel(file) {
 function startTracking() {
   if (isBusy || isTracking || !isModelReady || !trainingData.length) return;
   training.stop();
-  trackingEpoch++; isTracking = true; handLossSent = false; handLossStatus = "";
+  trackingEpoch++; isTracking = true; handLossSent = false;
   lastSentLabel = ""; lastSendTime = 0;
   setText("result-label", "손 감지 대기"); setText("result-conf", "");
 }
