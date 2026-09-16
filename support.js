@@ -14,6 +14,7 @@
       <details class="support-section" id="help-examples"><summary>마이크로비트 예제 코드</summary><div class="support-answer example-codes">
         <div class="example-code"><a href="https://makecode.microbit.org/S49771-77509-50114-72682" target="_blank" rel="noopener noreferrer">블루투스 이름 확인 코드 ↗</a><p>연결할 마이크로비트의 장치 이름을 확인합니다. 마이크로비트의 LED 매트릭스에 출력되는 이름(알파벳 소문자 5자리)을 확인한 뒤 아래 프로젝트 코드를 다운로드하세요.</p></div>
         <div class="example-code"><a id="project-example-link" href="${example}" target="_blank" rel="noopener noreferrer">프로젝트 예제 코드 ↗</a><p><strong>조건문에 ID1을 직접 입력해 코드를 완성하세요.</strong> 다른 학습 ID도 사용하려면 해당 ID에 맞는 조건과 동작을 추가하세요.</p></div>
+        <div class="example-code"><a href="https://makecode.microbit.org/_87f2DzTdFAME" target="_blank" rel="noopener noreferrer">프로젝트 예제 · AI 포니봇 핸드 포즈 제어 로봇 ↗</a><p>학습한 손 모양의 ID를 블루투스로 전송해 AI 포니봇 로봇을 제어하는 예제입니다. 웹앱의 학습 ID를 예제 코드의 수신 조건에 맞춰 사용하세요.</p></div>
         <p class="support-caption">stop을 받았을 때 기기를 멈추는 동작도 설정하세요. 다운로드하면 마이크로비트에 있던 이전 코드가 교체됩니다.</p>
       </div></details>
       <details class="support-section" id="help-troubleshooting"><summary>문제 해결 <span class="support-meta">증상별 안내</span></summary><div class="support-answer support-faq">
