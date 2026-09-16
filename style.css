@@ -739,3 +739,14 @@ button:focus-visible, a:focus-visible { outline: 3px solid #3778d4; outline-offs
 .canvas-container { aspect-ratio: 4 / 3; }
 #status-badge { width: max-content; max-width: calc(100% - 24px); text-align: center; }
 .empty-msg { color: #666; padding: 12px 0; font-size: 0.9rem; }
+
+/* Highlight a newly added ID without moving focus away from the add button. */
+.new-class { animation: new-class-highlight 1.4s ease-out; }
+@keyframes new-class-highlight {
+  from { box-shadow: 0 0 0 3px #111; }
+  to { box-shadow: 0 0 0 3px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .new-class { animation: none; }
+}
+

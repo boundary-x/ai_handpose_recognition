@@ -160,16 +160,28 @@ function draw() {
   if (training) checkHandFreshness();
   if (lastLandmarks) drawLandmarks(lastLandmarks);
 }
+function syncNextClassId() {
+  const used = new Set(classIds);
+  nextClassId = 1;
+  while (used.has("ID" + nextClassId)) nextClassId++;
+}
 function addClass() {
   if (isBusy) return;
   training.stop();
+  syncNextClassId();
   if (classIds.length >= HandModel.MAX_CLASSES || nextClassId >= Number.MAX_SAFE_INTEGER - 1) {
     trainingStatus("ID는 최대 100개까지 추가할 수 있습니다."); return;
   }
   const id = "ID" + nextClassId++;
   classIds.push(id); renderClasses(); updateControls();
+  const row = byId("training-list").querySelector('[data-id="' + id + '"]');
+  row.classList.add("new-class");
+  trainingStatus(id + "를 추가했습니다. 손을 비추고 학습해주세요.");
 }
 function renderClasses() {
+  syncNextClassId();
+  byId("add-class-btn").textContent = "+ ID" + nextClassId + " 추가";
+  classIds.sort((a, b) => Number(a.slice(2)) - Number(b.slice(2)));
   const list = byId("training-list"); list.replaceChildren();
   if (!classIds.length) {
     const empty = document.createElement("div");
@@ -223,9 +235,15 @@ function deleteClass(id) {
   stopForChange();
   trainingData = trainingData.filter(sample => sample.label !== id);
   classIds = classIds.filter(label => label !== id);
+  syncNextClassId();
+  if (!classIds.length) {
+    lastSampleFrame = -1;
+  }
   renderClasses(); updateControls();
   setText("result-label", "대기 중"); setText("result-conf", "데이터 변경됨");
-  trainingStatus(id + "를 삭제했습니다. 다른 ID는 유지됩니다.");
+  trainingStatus(classIds.length
+    ? id + "를 삭제했습니다. 다른 ID는 유지됩니다."
+    : "모든 ID를 삭제했습니다. ID1부터 추가할 수 있습니다.");
 }
 function clearAllModel() {
   if (isBusy) return;
@@ -240,7 +258,9 @@ function clearAllModel() {
 }
 function makeModelFile() {
   training.stop();
-  const project = HandModel.serialize(classIds, nextClassId, trainingData, isFlipped);
+  // Keep the version-1 file compatible with older apps; allocation is recalculated on import.
+  const exportNextId = Math.max(0, ...classIds.map(id => Number(id.slice(2)))) + 1;
+  const project = HandModel.serialize(classIds, exportNextId, trainingData, isFlipped);
   const file = new File([JSON.stringify(project)], "boundary-x-handpose-" +
     new Date().toISOString().replace(/[:.]/g, "-") + ".json", {type: "application/json"});
   if (file.size > HandModel.MAX_BYTES) throw new Error("파일이 8MiB를 초과합니다. 학습 데이터를 줄여주세요.");
@@ -288,6 +308,7 @@ async function importModel(file) {
     }
     stopForChange();
     trainingData = samples; classIds = ids; nextClassId = project.nextClassId;
+    syncNextClassId();
     isFlipped = project.settings.isFlipped; lastSampleFrame = -1;
     renderClasses();
     setText("result-label", "모델 준비됨"); setText("result-conf", "인식 시작을 눌러주세요.");
