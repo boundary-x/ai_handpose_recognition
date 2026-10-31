@@ -3,7 +3,9 @@ const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const UART_RX_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 const SEND_INTERVAL = 100;
 const HAND_FRESH_MS = 500;
-let video, handLandmarker;
+let video, handLandmarker, recovery;
+let inferenceFrame, inferenceContext, hasInferenceFrame = false;
+let engineNotice = "", lastInferenceAt = -Infinity, lastCameraFrameAt = 0, engineReadyAt = 0, cameraTime = -1;
 let isModelReady = false, modelLoadFailed = false;
 let lastLandmarks = null, lastFeatures = null, lastVideoTime = -1;
 let frameId = 0, lastSampleFrame = -1, lastHandSeenAt = -Infinity;
@@ -28,10 +30,17 @@ function setup() {
   video.elt.setAttribute("playsinline", "");
   video.elt.muted = true;
   video.hide();
+  // Use explicit pixel dimensions: camera videoWidth/videoHeight can differ
+  // from the HTML video element's width/height, especially on mobile.
+  inferenceFrame = document.createElement('canvas');
+  inferenceFrame.width = 320; inferenceFrame.height = 240;
+  inferenceContext = inferenceFrame.getContext('2d');
   createUI();
   initMediaPipe();
+  requestAnimationFrame(inferenceLoop);
 }
 function createUI() {
+  byId("compat-retry").addEventListener("click", () => { if (!isBusy) recovery.load("CPU"); });
   training = TrainingInput.createController({
     collect: collectSample,
     onStart: () => { if (isTracking) stopTracking(); }
@@ -65,6 +74,7 @@ function createUI() {
   updateHeader(); renderClasses(); updateControls();
 }
 function updateControls() {
+  byId("compat-retry").disabled = isBusy || recovery?.state === "loading";
   document.querySelectorAll(".train-btn").forEach(button => {
     button.disabled = isBusy || !isModelReady || !handAvailable;
   });
@@ -76,41 +86,79 @@ function updateControls() {
   byId("connect-btn").disabled = !isModelReady || isConnecting || isConnected;
   byId("connect-btn").textContent = isConnected ? "연결됨" : isConnecting ? "연결 중..." : isModelReady ? "기기 연결" : modelLoadFailed ? "AI 로드 실패" : "AI 로딩 중...";
 }
-async function initMediaPipe() {
-  try {
-    setText("status-badge", "MediaPipe 로딩 중...");
-    const m = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8");
-    const vision = await m.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm");
-    handLandmarker = await m.HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-        delegate: "GPU"
-      },
-      runningMode: "VIDEO", numHands: 1
-    });
-    isModelReady = true;
-    setText("status-badge", "손을 카메라에 비춰주세요");
-    updateControls();
-    inferenceLoop();
-  } catch (error) {
-    console.error(error);
-    modelLoadFailed = true; isModelReady = false;
-    setText("status-badge", "모델 로드 실패");
-    trainingStatus("모델을 불러오지 못했습니다. 연결 상태를 확인한 뒤 새로고침해주세요.");
-    updateControls();
+function recoveryState(state, mode, error) {
+  const loading = state === 'loading', failed = state === 'error';
+  if (state !== 'ready') {
+    isModelReady = false;
+    training.stop(); stopTracking();
+    invalidateHand();
   }
+  modelLoadFailed = failed;
+  if (loading) {
+    hasInferenceFrame = false;
+    engineNotice = mode === 'CPU' ? '손 인식을 다시 준비하고 있습니다…' : '손 인식을 준비하고 있습니다…';
+    byId('compat-retry').textContent = '손 인식 준비 중…';
+  } else if (state === 'ready') {
+    handLandmarker = recovery.engine; isModelReady = true;
+    lastVideoTime = -1; lastInferenceAt = -Infinity; lastSampleFrame = -1;
+    engineReadyAt = performance.now(); lastCameraFrameAt = engineReadyAt; cameraTime = -1;
+    engineNotice = '';
+    byId('compat-retry').textContent = '손 인식 다시 시작';
+    setText('compat-status', '준비되었습니다. 손을 카메라에 비춰주세요.');
+    setText('status-badge', '손을 카메라에 비춰주세요');
+    setText('compat-error', '실행 방식: ' + mode + ' · 기록된 오류가 없습니다.');
+  } else {
+    engineNotice = failed ? '손 인식을 시작하지 못했습니다. 다시 시도해주세요.' : '손 인식 실행에 문제가 발생했습니다.';
+    byId('compat-retry').textContent = failed ? '손 인식 다시 시도' : '손 인식 다시 시작';
+  }
+  if (error) setText('compat-error', (error.message || String(error)) + ' (실행 방식: ' + mode + ')');
+  if (loading) setText('compat-error', '');
+  byId('compat-status').dataset.state = state;
+  if (engineNotice) { setText('status-badge', engineNotice); setText('compat-status', engineNotice); }
+  updateControls();
+}
+async function initMediaPipe() {
+  recovery = new HandEngineRecovery({
+    onState: recoveryState,
+    create: async delegate => {
+      let m, vision;
+      try {
+        m = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8');
+        vision = await m.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm');
+      } catch (error) { throw new Error('인식 라이브러리를 불러오지 못했습니다. 네트워크 연결을 확인해주세요. ' + error.message); }
+      const response = await fetch('https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task');
+      if (!response.ok) throw new Error('손 인식 모델 다운로드 실패 (HTTP ' + response.status + ')');
+      const modelAssetBuffer = new Uint8Array(await response.arrayBuffer());
+      return m.HandLandmarker.createFromOptions(vision, {
+        baseOptions: {modelAssetBuffer, delegate}, runningMode:'VIDEO', numHands:1
+      });
+    }
+  });
+  await recovery.load('GPU');
 }
 function inferenceLoop() {
-  if (isModelReady && video && handLandmarker && !document.hidden) {
+  const now = performance.now();
+  if (recovery?.state === 'ready' && video && !document.hidden) {
     const input = video.elt;
-    if (input.readyState >= 2 && input.currentTime !== lastVideoTime) {
-      lastVideoTime = input.currentTime;
-      try {
-        const result = handLandmarker.detectForVideo(input, performance.now());
+    if (input.readyState >= 2 && input.currentTime !== cameraTime) {
+      cameraTime = input.currentTime; lastCameraFrameAt = now;
+    }
+    if (now - lastCameraFrameAt > 5000) {
+      engineNotice = input.readyState < 2 ? '카메라 영상을 기다리고 있습니다. 카메라 권한을 확인해주세요.' : '카메라 영상이 멈췄습니다. 페이지를 다시 열어주세요.';
+      invalidateHand(); stopTracking();
+      setText('status-badge',engineNotice); setText('compat-status',engineNotice);
+      byId('compat-status').dataset.state = 'error';
+    } else if (input.readyState >= 2 && input.currentTime !== lastVideoTime && now - lastInferenceAt >= (recovery.mode === 'CPU' ? 100 : 33)) {
+      lastVideoTime = input.currentTime; lastInferenceAt = now;
+      inferenceContext.drawImage(input, 0, 0, inferenceFrame.width, inferenceFrame.height);
+      const result = recovery.detect(inferenceFrame, now);
+      hasInferenceFrame = Boolean(result);
+      if (result) {
+        engineNotice = ''; isModelReady = true;
+        byId('compat-status').dataset.state = 'ready';
         handleHandResult(result.landmarks && result.landmarks[0]);
-      } catch (error) {
-        console.error(error);
-        invalidateHand();
+        setText('compat-status', handAvailable ? '손이 인식되고 있습니다.' : '준비되었습니다. 손을 카메라에 비춰주세요.');
+        updateControls();
       }
     }
   }
@@ -138,7 +186,7 @@ function invalidateHand() {
     trainingStatus("손이 감지되지 않아 수집을 중단했습니다. 손을 비춘 뒤 다시 눌러주세요.");
     updateControls();
   }
-  if (isModelReady) setText("status-badge", "손을 카메라에 비춰주세요");
+  if (isModelReady && !engineNotice) setText("status-badge", "손을 카메라에 비춰주세요");
 }
 function checkHandFreshness() {
   if (handAvailable && performance.now() - lastHandSeenAt > HAND_FRESH_MS) invalidateHand();
@@ -155,7 +203,13 @@ function draw() {
   background(0);
   push();
   if (isFlipped) { translate(width, 0); scale(-1, 1); }
-  if (video && video.elt.readyState >= 2) image(video, 0, 0, width, height);
+  if (video && video.elt.readyState >= 2) {
+    if (recovery?.mode === 'CPU' && hasInferenceFrame) {
+      // Display the exact frame that produced these landmarks. A live video
+      // beneath a slower CPU result makes the skeleton drift during movement.
+      drawingContext.drawImage(inferenceFrame, 0, 0, width, height);
+    } else image(video, 0, 0, width, height);
+  }
   pop();
   if (training) checkHandFreshness();
   if (lastLandmarks) drawLandmarks(lastLandmarks);
@@ -459,3 +513,5 @@ function drawLandmarks(landmarks) {
     ellipse(x, y, 7, 7);
   }
 }
+
+
