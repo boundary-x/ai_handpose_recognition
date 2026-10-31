@@ -1,0 +1,32 @@
+const assert=require('node:assert/strict');
+const Recovery=require('../engine-recovery.js');
+const tick=()=>new Promise(r=>setImmediate(r));
+(async()=>{
+ const calls=[],states=[];let closes=0;
+ const engine={close(){closes++},detectForVideo(){return {landmarks:[]}}};
+ const r=new Recovery({create:async mode=>{calls.push(mode);if(mode==='GPU')throw Error('GPU unavailable');return engine;},onState:(...s)=>states.push(s)});
+ assert.equal(await r.load(),true);assert.deepEqual(calls,['GPU','CPU']);assert.equal(r.state,'ready');
+ await r.load('CPU');assert.equal(closes,1);
+ console.log('PASS GPU fallback and old engine disposal');
+ let resolve;const p=new Recovery({create:()=>new Promise(r=>resolve=r),onState(){}});
+ const loading=p.load('CPU');await tick();assert.equal(await p.load('CPU'),false);resolve(engine);await loading;
+ console.log('PASS duplicate retry blocked');
+ let created=0;const run=new Recovery({create:async()=>{created++;return {close(){},detectForVideo(){throw Error('context lost')}}},onState(){}});
+ await run.load();for(let i=0;i<3;i++)run.detect({},i);await tick();
+ assert.equal(run.mode,'CPU');assert.equal(created,2);
+ for(let i=0;i<3;i++)run.detect({},i);await tick();assert.equal(run.state,'error');assert.equal(created,2);
+ console.log('PASS repeated runtime error fallback and bounded recovery');
+ let late;let disposed=false;const timeout=new Recovery({timeout:5,create:()=>new Promise(r=>late=r),onState(){}});
+ assert.equal(await timeout.load('CPU'),false);late({close(){disposed=true}});await tick();assert.equal(disposed,true);
+ console.log('PASS timed-out engine cannot replace active engine');
+ const fs=require('fs'),vm=require('vm');const elements=new Map();
+ const doc={getElementById(id){if(!elements.has(id))elements.set(id,{textContent:'',dataset:{}});return elements.get(id)},querySelectorAll(){return []}};
+ const ctx=vm.createContext({document:doc,console,performance:{now:()=>100},setTimeout,clearTimeout,Promise});
+ vm.runInContext(fs.readFileSync(require('path').join(__dirname,'../sketch.js'),'utf8'),ctx);
+ vm.runInContext(`training={stop(){}}; recovery={state:'loading'}; classIds=['ID1'];trainingData=[{label:'ID1',features:[1,2]}];isTracking=true;isModelReady=true;handAvailable=true;lastLandmarks=[{}];lastFeatures=[1];recoveryState('loading','CPU');`,ctx);
+ assert.equal(vm.runInContext('classIds[0]',ctx),'ID1');assert.equal(vm.runInContext('trainingData.length',ctx),1);
+ assert.equal(vm.runInContext('isTracking || handAvailable || isModelReady',ctx),false);
+ assert.equal(vm.runInContext('lastLandmarks',ctx),null);
+ console.log('PASS app preserves samples/IDs, stops recognition and clears stale landmarks');
+})().catch(e=>{console.error(e);process.exitCode=1});
+
