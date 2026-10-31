@@ -750,3 +750,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #3778d4; outline-offs
   .new-class { animation: none; }
 }
 
+
+.camera-panel{width:100%;max-width:400px;flex-shrink:0;align-self:flex-start;position:sticky;top:calc(var(--header-height,80px) + 16px)}.camera-panel .canvas-container{position:relative!important;top:auto!important;width:100%!important;max-width:none!important;height:auto!important;aspect-ratio:4/3;margin:0!important}.compat-panel{background:#f8f9fa;border:1px solid #d1d5db;border-radius:14px;margin-top:12px;padding:14px}.compat-panel button{width:100%;min-height:44px;border:1px solid #111;border-radius:24px;background:#fff;color:#111;font:inherit;font-weight:700;padding:10px}.compat-panel p{font-size:13px;line-height:1.5;margin:10px 0 0}.compat-note{color:#666}.compat-panel summary{font-size:13px;margin-top:12px;cursor:pointer}#compat-status{padding:10px;border-radius:8px;background:#e9ecef}#compat-status[data-state=ready]{background:#e6f4ea;color:#175e32}#compat-status[data-state=error],#compat-status[data-state=inference-error]{background:#fce8e6;color:#a02319}#compat-error{overflow-wrap:anywhere}@media(max-width:767px){.camera-panel{max-width:none;align-self:auto;position:relative;top:auto}.compat-panel{padding:12px}}
+.compat-panel .compat-heading{margin:0;font-size:15px;font-weight:700;color:#111}
+.compat-panel #compat-retry{margin-top:14px;cursor:pointer}
+.compat-panel #compat-retry:disabled{cursor:wait;opacity:.55}
+.compat-panel #compat-retry:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+.compat-panel .compat-note{font-size:12px}
+
