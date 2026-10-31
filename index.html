@@ -22,10 +22,18 @@
   </header>
 
   <main>
-    <div id="p5-container" class="canvas-container">
+    <div class="camera-panel"><div id="p5-container" class="canvas-container">
       <div id="status-badge" class="status-badge camera-badge">모델 로딩 중...</div>
     </div>
 
+      <div class="compat-panel">
+        <p class="compat-heading">손이 보이는데도 인식되지 않나요?</p>
+        <p id="compat-description">다른 처리 방식으로 다시 시도합니다.<br>추가한 ID와 학습 데이터는 그대로 유지됩니다.</p>
+        <button type="button" id="compat-retry" aria-describedby="compat-description">손 인식 다시 시작</button>
+        <p class="compat-note">다시 시작한 뒤에는 영상이 조금 덜 부드러울 수 있습니다.</p>
+        <p id="compat-status" role="status" aria-live="polite">손 인식 준비 중…</p>
+        <details><summary>기술 정보 확인</summary><p id="compat-error">기록된 오류가 없습니다.</p></details>
+      </div></div>
     <section class="controls">
 
       <div class="control-group">
@@ -94,7 +102,7 @@
           <h2 class="footer-logo">바운더리엑스</h2>
           <p class="slogan">"우리는 산업과 교육의 경계를 허물고, 미래 기술을 교실의 책상 위로 옮기는 사람들입니다"</p>
           <address>
-            <p>경기도 의왕시 안양판교로 82(유니콘로드), 811호</p>
+            <p>경기도 화성시 동탄첨단산업1로 57 동탄2인큐베이팅센터, 7층 706호</p>
             <p class="copyright">© 2024 Boundary X Co. All rights reserved.</p>
           </address>
         </div>
@@ -119,7 +127,9 @@
 
   <script src="hand-model.js"></script>
   <script src="training-input.js"></script>
+  <script src="engine-recovery.js"></script>
   <script src="sketch.js"></script>
   <script src="support.js"></script>
 </body>
 </html>
+
