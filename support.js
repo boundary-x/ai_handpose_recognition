@@ -7,7 +7,7 @@
   support.innerHTML = `
     <summary><span><strong>사용 가이드 및 지원</strong><small>사용법 · 예제 코드 · 문제 해결</small></span><span class="support-chevron" aria-hidden="true">⌄</span></summary>
     <div class="support-content">
-      <p class="support-intro">처음이라면 화면 안내부터 시작해보세요.</p>
+      <p class="support-intro">처음이라면 화면 안내부터 시작해보세요. 블루투스 연결 없이 인식하고 전송할 데이터를 먼저 확인할 수 있습니다. 기기를 연결하면 실제 데이터를 전송합니다.</p>
       <div class="support-actions">
         <button type="button" data-tour="all" class="support-primary">사용법 둘러보기 <span aria-hidden="true">→</span></button>
       </div>
@@ -161,4 +161,6 @@
   window.addEventListener('scroll', reposition, {passive:true});
   if (location.hash === '#support-card') requestAnimationFrame(() => openHelp());
 })();
+
+
 
