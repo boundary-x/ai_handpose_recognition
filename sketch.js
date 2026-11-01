@@ -396,7 +396,7 @@ function showPrediction(result) {
   setText("result-label", result.label);
   setText("result-conf", "신뢰도: " + (result.confidence * 100).toFixed(0) + "%" +
     (result.neighbors < 5 ? " · 샘플 부족 (" + result.neighbors + "/5)" : ""));
-  if (!isConnected) { setText("bluetooth-data-display", "전송 대기: 기기 연결 필요"); return; }
+  if (!isConnected) { setText("bluetooth-data-display", "전송할 데이터: " + result.label); return; }
   if (!predictionSendPending &&
       (result.label !== lastSentLabel || Date.now() - lastSendTime > SEND_INTERVAL)) {
     predictionSendPending = true;
@@ -418,7 +418,7 @@ function queueSend(data, epoch, attempts = 1) {
   const operation = sendQueue.then(async () => {
     if (data !== "stop" && (epoch !== trackingEpoch || !isTracking)) return false;
     if (!isConnected || !target || target !== rxCharacteristic) {
-      if (epoch === trackingEpoch) setText("bluetooth-data-display", "전송 대기: 기기 연결 필요");
+      if (epoch === trackingEpoch) setText("bluetooth-data-display", "전송할 데이터: " + data);
       return false;
     }
     for (let i = 0; i < attempts; i++) {
@@ -513,5 +513,7 @@ function drawLandmarks(landmarks) {
     ellipse(x, y, 7, 7);
   }
 }
+
+
 
 
