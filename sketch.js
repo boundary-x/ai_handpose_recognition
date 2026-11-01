@@ -172,7 +172,7 @@ function handleHandResult(landmarks) {
   lastHandSeenAt = performance.now(); handLossSent = false;
   if (!handAvailable) {
     handAvailable = true;
-    setText("status-badge", "손 감지됨");
+    setText("status-badge", isTracking ? "분류 중…" : "손 감지됨");
     updateControls();
   }
   // Classify once per fresh camera result, not once per render of cached landmarks.
@@ -186,7 +186,7 @@ function invalidateHand() {
     trainingStatus("손이 감지되지 않아 수집을 중단했습니다. 손을 비춘 뒤 다시 눌러주세요.");
     updateControls();
   }
-  if (isModelReady && !engineNotice) setText("status-badge", "손을 카메라에 비춰주세요");
+  if (isModelReady && !engineNotice) setText("status-badge", isTracking ? "손이 감지되지 않습니다" : "손을 카메라에 비춰주세요");
 }
 function checkHandFreshness() {
   if (handAvailable && performance.now() - lastHandSeenAt > HAND_FRESH_MS) invalidateHand();
@@ -381,18 +381,21 @@ function startTracking() {
   trackingEpoch++; isTracking = true; handLossSent = false;
   lastSentLabel = ""; lastSendTime = 0;
   setText("result-label", "손 감지 대기"); setText("result-conf", "");
+  setText("status-badge", handAvailable ? "분류 중…" : "손이 감지되지 않습니다");
 }
 function stopTracking(sendStopSignal = true) {
   const active = isTracking;
   isTracking = false;
   if (active) trackingEpoch++;
   if (active) {
+    setText("status-badge", engineNotice || (handAvailable ? "손 감지됨" : "손을 카메라에 비춰주세요"));
     setText("result-label", "중지됨"); setText("result-conf", "");
     if (sendStopSignal) sendStop(trackingEpoch);
   }
 }
 function showPrediction(result) {
   if (!result || !isTracking) return;
+  setText("status-badge", result.label);
   setText("result-label", result.label);
   setText("result-conf", "신뢰도: " + (result.confidence * 100).toFixed(0) + "%" +
     (result.neighbors < 5 ? " · 샘플 부족 (" + result.neighbors + "/5)" : ""));
@@ -513,6 +516,7 @@ function drawLandmarks(landmarks) {
     ellipse(x, y, 7, 7);
   }
 }
+
 
 
 

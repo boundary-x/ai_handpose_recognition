@@ -1,0 +1,16 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',disabled:false});return nodes.get(id);};
+const ctx=vm.createContext({document:{getElementById:get,querySelectorAll:()=>[]},performance:{now:()=>100},Date,Promise,console,HandModel:{extractFeatures:x=>x,classify:()=>({label:'ID2',confidence:.9,neighbors:5})}});
+vm.runInContext(fs.readFileSync(__dirname+'/../sketch.js','utf8'),ctx);
+const run=s=>vm.runInContext(s,ctx),badge=()=>get('status-badge').textContent;
+run('training={stop(){}};trainingData=[{}];isModelReady=true;queueSend=()=>Promise.resolve();');
+run('handleHandResult([1]);');assert.equal(badge(),'손 감지됨');
+run('startTracking();');assert.equal(badge(),'분류 중…');
+run('handleHandResult([1]);');assert.equal(badge(),'ID2');assert.equal(get('result-label').textContent,'ID2');assert.equal(get('bluetooth-data-display').textContent,'전송할 데이터: ID2');
+run('invalidateHand();');assert.equal(badge(),'손이 감지되지 않습니다');
+run('handleHandResult([1]);');assert.equal(badge(),'ID2');
+run('stopTracking();');assert.equal(badge(),'손 감지됨');
+run('invalidateHand();');assert.equal(badge(),'손을 카메라에 비춰주세요');
+run('startTracking();');assert.equal(badge(),'손이 감지되지 않습니다');
+run("engineNotice='카메라 오류';stopTracking();");assert.equal(badge(),'카메라 오류');
+console.log('PASS idle/start/classification/loss/reacquisition/stop/error badge states, offline preview preserved');
