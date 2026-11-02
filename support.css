@@ -73,3 +73,25 @@ body.guide-active::after { content:''; height:60vh; flex-shrink:0; }
 #guide-panel #guide-skip-device { color:#555; border:0; border-radius:0; background:none; padding:0 0 10px; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
 #guide-skip-device[hidden] { display:none; }
 @media(max-height:500px) { .guide-chapters { margin-bottom:8px; } .guide-topline { margin-bottom:4px; } #guide-description { margin-bottom:8px; } }
+
+/* Device-specific examples inside the existing support accordion. */
+#support-card .device-examples{padding-left:0}
+#support-card .device-intro{color:#444;margin:0 0 20px}
+.device-prepare{padding:18px 20px;border-radius:12px;background:#eceff2;margin-bottom:18px}
+.prepare-label{display:block;font-size:11px;font-weight:700;color:#666;margin-bottom:6px}
+.device-prepare>a{display:inline-block;font-weight:700;line-height:1.6;text-underline-offset:4px}
+#support-card .device-prepare p{margin:10px 0 0;font-size:13px;color:#666}
+.device-example-list{display:grid;gap:14px}
+.device-example-card{padding:22px;border:1px solid #dfe2e5;border-radius:16px;background:white;min-width:0}
+.device-example-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.device-example-heading h4{margin:0;color:#111;font-size:18px;font-weight:750}
+.device-tag{display:inline-block;font-size:11px;padding:4px 8px;background:#f2f3f5;border-radius:6px;color:#666;white-space:nowrap}
+#support-card .device-example-card p{margin:0 0 16px;color:#666;font-size:13px;line-height:1.7}
+.device-example-links{display:flex;gap:10px;flex-wrap:wrap}
+#support-card .device-example-links a{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1 1 160px;box-sizing:border-box;min-height:46px;padding:12px 15px;color:white;background:#111;border:1px solid #111;border-radius:10px;text-decoration:none;font-size:13px;font-weight:650;line-height:1.5}
+#support-card .device-example-links a:hover{background:#333}
+.device-example-links a:focus-visible,.device-prepare a:focus-visible{outline:3px solid #3778d4;outline-offset:3px}
+.device-coming-soon{border:1px dashed #d2d6da;border-radius:10px;padding:12px 15px;min-height:46px;box-sizing:border-box;text-align:center;background:#fafafa;color:#777;font-size:13px}
+#support-card .device-note{font-size:12px;color:#777;line-height:1.7;margin:18px 0 0}
+@media(max-width:480px){.device-example-card{padding:18px 16px}.device-prepare{padding:16px}.device-example-heading h4{font-size:17px}.device-example-links{flex-direction:column}#support-card .device-example-links a{flex:auto;width:100%}}
+
