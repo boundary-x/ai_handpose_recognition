@@ -459,13 +459,13 @@ async function connectBluetooth() {
   isConnecting = true; updateControls();
   try {
     if (!navigator.bluetooth) throw new Error("이 브라우저는 블루투스를 지원하지 않습니다.");
-    bluetoothDevice = await navigator.bluetooth.requestDevice({
+    bluetoothDevice = await BoardLink.requestDevice({
       filters: [{namePrefix: "BBC micro:bit"}], optionalServices: [UART_SERVICE_UUID]
     });
     bluetoothDevice.addEventListener("gattserverdisconnected", onDisconnected);
     const server = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
-    rxCharacteristic = await service.getCharacteristic(UART_RX_UUID);
+    rxCharacteristic = await BoardLink.getCharacteristic(service,UART_RX_UUID);
     isConnected = true; lastSentLabel = ""; lastSendTime = 0;
     bluetoothStatus = "연결됨: " + bluetoothDevice.name;
   } catch (error) {
